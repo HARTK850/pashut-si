@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>פשוט סיפור - יצירת סיפורים בבינה מלאכותית</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="title">פשוט סיפור</h1>
+            <p class="subtitle">יצירת סיפורים בבינה מלאכותית</p>
+        </header>
+
+        <!-- API Key Section -->
+        <div class="api-section" id="apiSection">
+            <div class="api-card">
+                <h2>הזנת מפתח API</h2>
+                <p>כדי להשתמש בשירות, אנא הזן את מפתח הגוגל API שלך:</p>
+                <div class="input-group">
+                    <input type="password" id="apiKey" placeholder="הזן מפתח Google API">
+                    <button onclick="saveApiKey()" class="btn-primary">שמור</button>
+                </div>
+                <div class="api-info">
+                    <small>המפתח נשמר באופן מקומי ולא נשלח לשרתים חיצוניים</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent" style="display: none;">
+            <!-- Story Creation Section -->
+            <section class="creation-section">
+                <div class="input-card">
+                    <h2>צור סיפור חדש</h2>
+                    <div class="input-group">
+                        <label for="storyTopic">תן לנו נושא לסיפור</label>
+                        <textarea id="storyTopic" placeholder="למשל: שתי חברות מתוות על מקום לחופשה..."></textarea>
+                    </div>
+                    
+                    <div class="examples-section">
+                        <h3>דוגמאות מוכנות:</h3>
+                        <div class="examples-grid">
+                            <button onclick="setExample('שיחה על רעיון חדש לפרויקט')" class="example-btn">
+                                שיחה על רעיון חדש לפרויקט
+                            </button>
+                            <button onclick="setExample('שני חוקרים מגלים יצור מכוכב אחר')" class="example-btn">
+                                שני חוקרים מגלים יצור מכוכב אחר
+                            </button>
+                            <button onclick="setExample('ויכוח על איזו פיצה להזמין')" class="example-btn">
+                                ויכוח על איזו פיצה להזמין
+                            </button>
+                            <button onclick="setExample('שני ילדים מתחרים במשחק')" class="example-btn">
+                                שני ילדים מתחרים במשחק
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="createStory()" class="btn-create" id="createBtn">
+                        <span id="createBtnText">צור סיפור</span>
+                        <div class="loading-spinner" id="loadingSpinner"></div>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Audio Player Section -->
+            <section class="player-section" id="playerSection" style="display: none;">
+                <div class="player-card">
+                    <h3 id="currentStoryTitle">הסיפור שלך</h3>
+                    <div class="audio-controls">
+                        <audio controls id="audioPlayer" controlsList="nodownload">
+                            האפדפן שלך לא תומך בנגן האודיו
+                        </audio>
+                    </div>
+                    <div class="story-actions">
+                        <button onclick="downloadStory()" class="btn-download">הורד סיפור</button>
+                        <button onclick="createNew()" class="btn-secondary">צור סיפור חדש</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stories History Section -->
+            <section class="history-section">
+                <h2>הסיפורים שלי</h2>
+                <div class="stories-grid" id="storiesGrid">
+                    <div class="no-stories" id="noStories">
+                        <p>עדיין לא יצרת סיפורים</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>נוצר עם ❤️ באמצעות Gemini AI</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
