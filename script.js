@@ -15,6 +15,7 @@ class StoryGenerator {
     this.loadApiKey();
     this.showApiKeyModalIfNeeded();
     this.loadSettings();
+    this.loadHistory(); // טעינת ההיסטוריה מיד עם ההתחלה
   }
 
   bindEvents() {
@@ -167,8 +168,10 @@ class StoryGenerator {
     const idea = document.getElementById("storyIdea").value.trim();
     const script = this.currentScript;
     if (idea && script) {
-      this.history.unshift({ idea, script });
-      localStorage.setItem("story_history", JSON.stringify(this.history));
+      const newStory = { idea, script, timestamp: new Date().toISOString() };
+      this.history.unshift(newStory);
+      localStorage.setItem("story_history", JSON.stringify(this.history.slice(0, 10))); // שמירה של עד 10 סיפורים
+      this.loadHistory(); // עדכון תצוגת ההיסטוריה
     }
   }
 
@@ -229,7 +232,7 @@ class StoryGenerator {
   }
 
   buildScriptPrompt(storyIdea) {
-    let prompt = `צור סיפור מעניין ומקורי`;
+    let prompt = `צור סיפור מעניין ומקורי עם ניקוד מלא (למשל: תַּלְמִיד, שְׁלוֹם, חַיִּים)`;
 
     if (storyIdea) {
       prompt += ` על בסיס הרעיון: ${storyIdea}`;
@@ -254,7 +257,8 @@ class StoryGenerator {
 הוראות חשובות:
 - כתב את הסיפור בפורמט של דובר אחד (קריין) שמספר את הסיפור
 - השתמש בפורמט: [קריין]: הטקסט של הסיפור
-- כתב בסגנון סיפור מסופר (לדוגמא: "חיים נכנס הביתה, אמו קיבלה אותו באהבה")
+- כתב בסגנון סיפור מסופר (לדוגמא: "חַיִּים נִכְנַס לַבַּיִת, אִמּוֹ קִבְּלָה אוֹתוֹ בְּאַהֲבָה")
+- הוסף ניקוד מלא לכל המילים בעברית (למשל: תַּלְמִיד, שְׁלוֹם, חַיִּים)
 - אל תכתב דיאלוגים ישירים, אלא תאר את מה שקורה
 
 התסריט צריך להיות:
@@ -263,7 +267,7 @@ class StoryGenerator {
 - עם קריין אחד שמספר את כל הסיפור
 
 דוגמה לפורמט:
-[קריין]: פעם, בעיר קטנה, חי ילד בשם דוד. יום אחד הוא יצא לחפש הרפתקאות. הוא פגש חבר ישן שהציע לו ללכת יחד לחפש אוצר נסתר...
+[קריין]: פַּעַם, בְּעִיר קְטַנָּה, חַי יֶלֶד שֵׁם דָּוִד. יוֹם אֶחָד הוּא יָצָא לַחְפֹּשׂ הַרְפַּתְקָאוֹת. הוּא פָּגַשׁ חָבֵר יָשָׁן שֶׁהִצִּיע לוֹ לָלֶכֶת יַחַד לַחְפֹּשׂ אוֹצָר נִסְתָּר...
 
 חשוב מאוד: החזר רק את התסריט עצמו ללא הקדמות, הסברים או טקסט נוסף. התחל ישירות עם השורה הראשונה של התסריט.`;
 
