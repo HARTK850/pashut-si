@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>פשוט סיפור</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&family=Alef:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">פשוט סיפור</div>
+            <div class="tagline">מחולל סיפורים עם בינה מלאכותית</div>
+            <div class="top-right-buttons">
+                <button id="settingsBtn" class="circle-btn" title="הגדרות">⚙️</button>
+                <button id="historyBtn" class="circle-btn" title="היסטוריית סיפורים">📜</button>
+                <button id="apiKeyBtn" class="circle-btn" title="עריכת מפתח API">🔑</button>
+            </div>
+        </header>
+
+        <div id="apiKeyModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>הגדרת API Key</h2>
+                <input type="password" id="apiKey" placeholder="הזן מפתח API">
+                <button id="saveApiKey">שמור</button>
+                <div id="apiStatus" class="status-message"></div>
+            </div>
+        </div>
+
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>הגדרות</h2>
+                <h3>הגדרות הסיפור</h3>
+                <div class="setting-group">
+                    <label for="storyStyle">סגנון סיפור:</label>
+                    <select id="storyStyle">
+                        <option value="">תן לגמיני להחליט</option>
+                        <option value="דרמה">דרמה</option>
+                        <option value="קומדיה">קומדיה</option>
+                        <option value="הרפתקאות">הרפתקאות</option>
+                        <option value="מסתורין">מסתורין</option>
+                        <option value="מדע בדיוני">מדע בדיוני</option>
+                        <option value="פנטזיה">פנטזיה</option>
+                        <option value="היסטורי">היסטורי</option>
+                        <option value="ילדים">ילדים</option>
+                        <option value="מוטיבציה">מוטיבציה</option>
+                        <option value="אימה">אימה</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label for="storyLength">אורך סיפור (דקות):</label>
+                    <select id="storyLength">
+                        <option value="">תן לגמיני להחליט</option>
+                        <option value="1-2">1-2 דקות</option>
+                        <option value="2-5">2-5 דקות</option>
+                        <option value="5-10">5-10 דקות</option>
+                        <option value="10-15">10-15 דקות</option>
+                    </select>
+                </div>
+                <h3>הגדרות ההקראה</h3>
+                <div class="setting-group">
+                    <label for="speakingRate">מהירות הקראה:</label>
+                    <select id="speakingRate">
+                        <option value="">תן לגמיני להחליט</option>
+                        <option value="0.5">איטי מאוד (0.5)</option>
+                        <option value="0.75">איטי (0.75)</option>
+                        <option value="1">רגיל (1)</option>
+                        <option value="1.25">מהיר (1.25)</option>
+                        <option value="1.5">מהיר מאוד (1.5)</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label for="narrationStyle">סגנון הקראה:</label>
+                    <select id="narrationStyle">
+                        <option value="">תן לגמיני להחליט (מומלץ)</option>
+                        <option value="ניטרלי">ניטרלי</option>
+                        <option value="שמח">שמח</option>
+                        <option value="עצוב">עצוב</option>
+                        <option value="מתוח">מתוח</option>
+                        <option value="רגוע">רגוע</option>
+                    </select>
+                    <p class="warning">שימוש בסגנון קבוע פחות מומלץ, כי אז ההקראה תהיה אחידה ולא תשתנה לפי ההקשר בסיפור.</p>
+                </div>
+                <div class="setting-group">
+                    <label for="voicePitch">גובה קול (Pitch):</label>
+                    <select id="voicePitch">
+                        <option value="">תן לגמיני להחליט</option>
+                        <option value="-20">נמוך מאוד (-20)</option>
+                        <option value="-10">נמוך (-10)</option>
+                        <option value="0">רגיל (0)</option>
+                        <option value="10">גבוה (10)</option>
+                        <option value="20">גבוה מאוד (20)</option>
+                    </select>
+                </div>
+                <button id="saveSettings">שמור הגדרות</button>
+            </div>
+        </div>
+
+        <div id="historyModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>היסטוריית סיפורים</h2>
+                <div id="historyList"></div>
+            </div>
+        </div>
+
+        <div class="card step-card" id="step1">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <h2>רעיון לסיפור</h2>
+            </div>
+            <div class="input-group">
+                <input type="text" id="storyIdea" placeholder="הזן רעיון לסיפור">
+                <button class="btn btn-primary" id="generateScript">
+                    <span class="btn-text">צור תסריט</span>
+                    <span class="spinner" style="display: none;"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card step-card" id="step2" style="display: none;">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <h2>עריכת התסריט</h2>
+            </div>
+            <textarea id="scriptContent" placeholder="התסריט יופיע כאן"></textarea>
+            <div id="scriptStatus" class="status-message"></div>
+            <div class="input-group">
+                <button class="btn btn-primary" id="generateAudio">
+                    <span class="btn-text">צור שמע</span>
+                    <span class="spinner" style="display: none;"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card step-card" id="step3" style="display: none;">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <h2>האזנה והורדה</h2>
+            </div>
+            <div class="audio-player">
+                <audio id="audioPlayer" controls>
+                    האדפדפן שלך לא תומך בנגן השמע.
+                </audio>
+                <div id="audioPlaceholder" class="audio-placeholder">
+                    השמע יופיע כאן לאחר היצירה
+                </div>
+            </div>
+            <div class="audio-controls">
+                <button class="btn btn-secondary" id="downloadAudio" style="display: none;">
+                    <span class="btn-text">הורד קובץ WAV</span>
+                </button>
+                <button class="btn btn-outline" id="createNew">צור סיפור חדש</button>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
