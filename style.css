@@ -204,7 +204,8 @@ body {
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
-  flex-direction: row-reverse; /* יישור לימין לעברית */
+  flex-direction: column; /* שינוי לטור במקום שורה */
+  align-items: flex-start; /* יישור תוכן לשמאל בתוך הטור */
 }
 
 input[type="text"],
