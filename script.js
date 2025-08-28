@@ -138,6 +138,10 @@ class StoryGenerator {
 
   loadHistory() {
     const historyList = document.getElementById("historyList");
+    if (!historyList) {
+      console.warn("historyList element not found");
+      return;
+    }
     historyList.innerHTML = "";
     this.history.forEach((story, index) => {
       const item = document.createElement("div");
@@ -303,33 +307,25 @@ class StoryGenerator {
   async generateAudioWithGeminiTTS(scriptContent) {
     try {
       const segments = this.parseScriptSegments(scriptContent);
-
       if (segments.length === 0) {
         throw new Error("לא נמצאו קטעי דיבור בתסריט");
       }
 
       const allText = segments.map((seg) => seg.text).join(" ");
+      console.log("[v0] Sending request to TTS API with text:", allText.substring(0, 100) + "...");
 
-      console.log("[v0] Starting Gemini TTS generation with single narrator, text length:", allText.length);
-
-      let narrationPrompt = "Narrate this story dynamically, adjusting tone, pace, and emotion to match the content: " + allText;
-
-      if (this.settings.narrationStyle && this.settings.narrationStyle !== "") {
+      let narrationPrompt = "Narrate this story dynamically: " + allText;
+      if (this.settings.narrationStyle) {
         narrationPrompt = `Narrate this story in a ${this.settings.narrationStyle} style: ` + allText;
       }
 
       const requestBody = {
         contents: [{ parts: [{ text: narrationPrompt }] }],
         generationConfig: {
-          responseModalities: ["AUDIO"],
           speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: "Achird", // Keeping as male voice
-              },
-            },
-            speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
-            pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : undefined,
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Achird" } },
+            speakingRate: this.settings.speakingRate || 1.0,
+            pitch: this.settings.voicePitch || 0,
           },
         },
       };
@@ -340,46 +336,31 @@ class StoryGenerator {
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
           {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody),
-          },
+          }
         );
-
+        console.log("[v0] API Response Status:", response.status);
         if (response.ok || response.status !== 429) break;
-
         console.log(`[v0] Retry ${attempt + 1} after 47s due to 429`);
         await new Promise((r) => setTimeout(r, 47000));
       }
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[v0] API Error Details:", errorText);
         if (response.status === 429) {
           throw new Error("שגיאה 429: מלאה מכסת חינם, עבור לתשלום ב-https://console.cloud.google.com/");
         }
-        const errorText = await response.text();
-        console.error(`[v0] API Error:`, errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, Details: ${errorText}`);
       }
 
       const data = await response.json();
-
-      if (
-        !data.candidates ||
-        !data.candidates[0] ||
-        !data.candidates[0].content ||
-        !data.candidates[0].content.parts ||
-        !data.candidates[0].content.parts[0] ||
-        !data.candidates[0].content.parts[0].inlineData
-      ) {
+      if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
         throw new Error("לא התקבל אודיו מה-API");
       }
 
       const audioData = data.candidates[0].content.parts[0].inlineData.data;
-      if (!audioData) {
-        throw new Error("נתוני האודיו ריקים");
-      }
-
       const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
       const wavBlob = this.createWavBlob(pcmBytes);
 
@@ -387,16 +368,10 @@ class StoryGenerator {
       console.log("[v0] Gemini TTS audio generation completed successfully");
     } catch (error) {
       console.error("[v0] Error in generateAudioWithGeminiTTS:", error);
-
       if (error.message.includes("429")) {
         throw error;
       }
-
-      if (error.message.includes("400") || error.message.includes("HTTP error")) {
-        throw new Error("שגיאה ב-API: נסה טקסט קצר יותר או בדוק את המפתח.");
-      }
-
-      throw error;
+      throw new Error("שגיאה ב-API: בדוק את המפתח או פנה לתמיכה. פרטים: " + error.message);
     }
   }
 
