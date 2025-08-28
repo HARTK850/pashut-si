@@ -11,6 +11,7 @@ body {
   min-height: 100vh;
   color: #333;
   line-height: 1.6;
+  direction: rtl; /* תמיכה מלאה בעברית */
 }
 
 .container {
@@ -90,9 +91,12 @@ body {
   border-radius: 20px;
   padding: 30px;
   max-width: 500px;
+  max-height: 80vh; /* גובה מקסימלי עם גלילה */
   width: 90%;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   position: relative;
+  overflow-y: auto; /* גלילה פנימית */
+  text-align: right; /* יישור לימין לעברית */
 }
 
 .close {
@@ -112,17 +116,20 @@ body {
 .modal h2 {
   margin-bottom: 20px;
   color: #2c3e50;
+  text-align: right;
 }
 
 .modal h3 {
   margin: 20px 0 10px;
   color: #4facfe;
+  text-align: right;
 }
 
 .warning {
   font-size: 0.9rem;
   color: #721c24;
   margin-top: 5px;
+  text-align: right;
 }
 
 /* History List */
@@ -138,6 +145,7 @@ body {
   margin-bottom: 10px;
   cursor: pointer;
   transition: background 0.3s;
+  text-align: right;
 }
 
 .history-item:hover {
@@ -158,6 +166,7 @@ body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: right;
 }
 
 .step-card {
@@ -195,6 +204,7 @@ body {
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
+  flex-direction: row-reverse; /* יישור לימין לעברית */
 }
 
 input[type="text"],
@@ -209,6 +219,7 @@ select {
   font-family: "Assistant", sans-serif;
   transition: all 0.3s ease;
   background: #f8f9fa;
+  text-align: right;
 }
 
 input:focus,
@@ -229,6 +240,7 @@ textarea {
   min-height: 200px;
   font-family: "Courier New", monospace;
   line-height: 1.8;
+  text-align: right;
 }
 
 /* Settings Grid */
@@ -244,6 +256,7 @@ textarea {
   margin-bottom: 8px;
   font-weight: 500;
   color: #2c3e50;
+  text-align: right;
 }
 
 /* Checkbox Styles */
@@ -260,6 +273,7 @@ textarea {
   cursor: pointer;
   font-weight: 500;
   color: #2c3e50;
+  flex-direction: row-reverse; /* יישור לימין */
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -271,7 +285,7 @@ textarea {
   height: 20px;
   border: 2px solid #4facfe;
   border-radius: 4px;
-  margin-left: 10px;
+  margin-right: 10px; /* שינוי לימין במקום שמאל */
   position: relative;
   transition: all 0.3s ease;
 }
@@ -304,6 +318,7 @@ textarea {
   gap: 10px;
   font-family: "Assistant", sans-serif;
   text-decoration: none;
+  text-align: center;
 }
 
 .btn-primary {
@@ -364,6 +379,7 @@ textarea {
   padding: 15px;
   border-radius: 10px;
   margin-bottom: 15px;
+  text-align: right;
 }
 
 .speaker-item {
@@ -372,6 +388,7 @@ textarea {
   gap: 10px;
   margin-bottom: 8px;
   font-weight: 500;
+  flex-direction: row-reverse;
 }
 
 .speaker-color {
@@ -392,6 +409,7 @@ textarea {
   border-radius: 15px;
   color: #6c757d;
   font-style: italic;
+  text-align: right;
 }
 
 #audioPlayer {
@@ -404,6 +422,7 @@ textarea {
   gap: 15px;
   justify-content: center;
   flex-wrap: wrap;
+  flex-direction: row-reverse;
 }
 
 /* Status Messages */
@@ -412,6 +431,7 @@ textarea {
   border-radius: 8px;
   margin-top: 10px;
   font-weight: 500;
+  text-align: right;
 }
 
 .status-message.success {
@@ -433,6 +453,7 @@ textarea {
   border-radius: 10px;
   margin: 20px 0;
   border: 1px solid #f5c6cb;
+  text-align: right;
 }
 
 /* Responsive Design */
@@ -454,11 +475,11 @@ textarea {
   }
 
   .input-group {
-    flex-direction: column;
+    flex-direction: column-reverse;
   }
 
   .audio-controls {
-    flex-direction: column;
+    flex-direction: column-reverse;
     align-items: center;
   }
 
@@ -473,6 +494,12 @@ textarea {
     height: 35px;
     font-size: 1rem;
   }
+
+  .close {
+    top: 5px;
+    right: 10px;
+    font-size: 24px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -481,12 +508,17 @@ textarea {
   }
 
   .step-header {
-    flex-direction: column;
+    flex-direction: column-reverse;
     text-align: center;
     gap: 10px;
   }
 
   .btn {
     width: 100%;
+  }
+
+  .modal-content {
+    max-width: 90%;
+    padding: 20px;
   }
 }
