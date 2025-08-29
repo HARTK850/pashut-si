@@ -11,7 +11,7 @@ body {
   min-height: 100vh;
   color: #333;
   line-height: 1.6;
-  direction: rtl; /* תמיכה מלאה בעברית */
+  direction: rtl;
 }
 
 .container {
@@ -73,7 +73,7 @@ body {
 }
 
 /* Modal Styles */
-.modal {
+.modal, .select-modal {
   display: none;
   position: fixed;
   z-index: 1000;
@@ -86,17 +86,17 @@ body {
   justify-content: center;
 }
 
-.modal-content {
+.modal-content, .select-modal-content {
   background: white;
   border-radius: 20px;
   padding: 30px;
   max-width: 500px;
-  max-height: 80vh; /* גובה מקסימלי עם גלילה */
+  max-height: 80vh;
   width: 90%;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   position: relative;
-  overflow-y: auto; /* גלילה פנימית */
-  text-align: right; /* יישור לימין לעברית */
+  overflow-y: auto;
+  text-align: right;
 }
 
 .close {
@@ -113,7 +113,7 @@ body {
   color: #000;
 }
 
-.modal h2 {
+.modal h2, .select-modal h2 {
   margin-bottom: 20px;
   color: #2c3e50;
   text-align: right;
@@ -130,6 +130,35 @@ body {
   color: #721c24;
   margin-top: 5px;
   text-align: right;
+}
+
+/* Select Modal Styles */
+.select-trigger {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: "Assistant", sans-serif;
+  background: #f8f9fa;
+  text-align: right;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.select-trigger:hover {
+  border-color: #4facfe;
+  background: white;
+}
+
+.select-option {
+  padding: 15px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.select-option:hover {
+  background: #e1e8ed;
 }
 
 /* History List */
@@ -204,14 +233,13 @@ body {
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
-  flex-direction: column; /* שינוי לטור במקום שורה */
-  align-items: flex-start; /* יישור תוכן לשמאל בתוך הטור */
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 input[type="text"],
 input[type="password"],
-textarea,
-select {
+textarea {
   width: 100%;
   padding: 15px;
   border: 2px solid #e1e8ed;
@@ -224,8 +252,7 @@ select {
 }
 
 input:focus,
-textarea:focus,
-select:focus {
+textarea:focus {
   outline: none;
   border-color: #4facfe;
   background: white;
@@ -258,50 +285,6 @@ textarea {
   font-weight: 500;
   color: #2c3e50;
   text-align: right;
-}
-
-/* Checkbox Styles */
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin: 20px 0;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  font-weight: 500;
-  color: #2c3e50;
-  flex-direction: row-reverse; /* יישור לימין */
-}
-
-.checkbox-label input[type="checkbox"] {
-  display: none;
-}
-
-.checkmark {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #4facfe;
-  border-radius: 4px;
-  margin-right: 10px; /* שינוי לימין במקום שמאל */
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkmark {
-  background: #4facfe;
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkmark::after {
-  content: "✓";
-  position: absolute;
-  top: -2px;
-  left: 3px;
-  color: white;
-  font-weight: bold;
 }
 
 /* Buttons */
@@ -372,30 +355,6 @@ textarea {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-/* Speakers List */
-.speakers-list {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 15px;
-  text-align: right;
-}
-
-.speaker-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  font-weight: 500;
-  flex-direction: row-reverse;
-}
-
-.speaker-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
 }
 
 /* Audio Player */
@@ -518,7 +477,7 @@ textarea {
     width: 100%;
   }
 
-  .modal-content {
+  .modal-content, .select-modal-content {
     max-width: 90%;
     padding: 20px;
   }
