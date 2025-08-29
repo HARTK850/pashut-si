@@ -15,7 +15,7 @@ class StoryGenerator {
     this.loadApiKey();
     this.showApiKeyModalIfNeeded();
     this.loadSettings();
-    this.loadHistory(); // טעינת ההיסטוריה מיד עם ההתחלה
+    this.setupSelectModals();
   }
 
   bindEvents() {
@@ -42,12 +42,14 @@ class StoryGenerator {
 
   setupModals() {
     // Close buttons
-    const modals = document.querySelectorAll(".modal");
+    const modals = document.querySelectorAll(".modal, .select-modal");
     modals.forEach(modal => {
       const close = modal.querySelector(".close");
-      close.addEventListener("click", () => {
-        modal.style.display = "none";
-      });
+      if (close) {
+        close.addEventListener("click", () => {
+          modal.style.display = "none";
+        });
+      }
     });
 
     // Settings button
@@ -67,6 +69,34 @@ class StoryGenerator {
     });
   }
 
+  setupSelectModals() {
+    const selectFields = [
+      { trigger: "storyStyleTrigger", modal: "storyStyleModal", setting: "storyStyle" },
+      { trigger: "storyLengthTrigger", modal: "storyLengthModal", setting: "storyLength" },
+      { trigger: "speakingRateTrigger", modal: "speakingRateModal", setting: "speakingRate" },
+      { trigger: "narrationStyleTrigger", modal: "narrationStyleModal", setting: "narrationStyle" },
+      { trigger: "voicePitchTrigger", modal: "voicePitchModal", setting: "voicePitch" }
+    ];
+
+    selectFields.forEach(field => {
+      const trigger = document.getElementById(field.trigger);
+      const modal = document.getElementById(field.modal);
+      const options = modal.querySelectorAll(".select-option");
+
+      trigger.addEventListener("click", () => {
+        modal.style.display = "flex";
+      });
+
+      options.forEach(option => {
+        option.addEventListener("click", () => {
+          this.settings[field.setting] = option.getAttribute("data-value");
+          trigger.textContent = option.textContent;
+          modal.style.display = "none";
+        });
+      });
+    });
+  }
+
   showApiKeyModalIfNeeded() {
     if (!this.apiKey) {
       document.getElementById("apiKeyModal").style.display = "flex";
@@ -82,7 +112,6 @@ class StoryGenerator {
       return;
     }
 
-    // Test API Key
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -115,20 +144,33 @@ class StoryGenerator {
   }
 
   loadSettings() {
-    const fields = ["storyStyle", "storyLength", "speakingRate", "narrationStyle", "voicePitch"];
-    fields.forEach(field => {
-      const elem = document.getElementById(field);
-      if (elem) elem.value = this.settings[field] || "";
+    const selectFields = [
+      { id: "storyStyleTrigger", setting: "storyStyle", default: "תן לגמיני להחליט" },
+      { id: "storyLengthTrigger", setting: "storyLength", default: "תן לגמיני להחליט" },
+      { id: "speakingRateTrigger", setting: "speakingRate", default: "תן לגמיני להחליט" },
+      { id: "narrationStyleTrigger", setting: "narrationStyle", default: "תן לגמיני להחליט (מומלץ)" },
+      { id: "voicePitchTrigger", setting: "voicePitch", default: "תן לגמיני להחליט" }
+    ];
+
+    selectFields.forEach(field => {
+      const elem = document.getElementById(field.id);
+      if (elem) {
+        const options = document.querySelectorAll(`#${field.id.replace("Trigger", "Modal")} .select-option`);
+        let selectedText = field.default;
+        options.forEach(option => {
+          if (option.getAttribute("data-value") === this.settings[field.setting]) {
+            selectedText = option.textContent;
+          }
+        });
+        elem.textContent = selectedText;
+      }
     });
   }
 
   saveSettings() {
     const fields = ["storyStyle", "storyLength", "speakingRate", "narrationStyle", "voicePitch"];
     fields.forEach(field => {
-      const elem = document.getElementById(field);
-      if (elem.value) {
-        this.settings[field] = elem.value;
-      } else {
+      if (this.settings[field] === undefined) {
         delete this.settings[field];
       }
     });
@@ -138,10 +180,6 @@ class StoryGenerator {
 
   loadHistory() {
     const historyList = document.getElementById("historyList");
-    if (!historyList) {
-      console.warn("historyList element not found");
-      return;
-    }
     historyList.innerHTML = "";
     this.history.forEach((story, index) => {
       const item = document.createElement("div");
@@ -160,11 +198,23 @@ class StoryGenerator {
     this.extractSpeakersFromScript(story.script);
     this.setupSpeakersList();
     this.showStep(2);
-    // Audio not saved, regenerate if needed
-    this.currentAudioBlob = null;
-    document.getElementById("audioPlayer").style.display = "none";
-    document.getElementById("audioPlaceholder").style.display = "block";
-    document.getElementById("downloadAudio").style.display = "none";
+    if (story.audioBase64) {
+      this.currentAudioBlob = this.base64ToBlob(story.audioBase64, 'audio/wav');
+      const audioPlayer = document.getElementById("audioPlayer");
+      const audioPlaceholder = document.getElementById("audioPlaceholder");
+      const downloadButton = document.getElementById("downloadAudio");
+      const audioUrl = URL.createObjectURL(this.currentAudioBlob);
+      audioPlayer.src = audioUrl;
+      audioPlayer.style.display = "block";
+      audioPlaceholder.style.display = "none";
+      downloadButton.style.display = "inline-flex";
+      this.showStep(3);
+    } else {
+      this.currentAudioBlob = null;
+      document.getElementById("audioPlayer").style.display = "none";
+      document.getElementById("audioPlaceholder").style.display = "block";
+      document.getElementById("downloadAudio").style.display = "none";
+    }
     document.getElementById("historyModal").style.display = "none";
   }
 
@@ -172,11 +222,35 @@ class StoryGenerator {
     const idea = document.getElementById("storyIdea").value.trim();
     const script = this.currentScript;
     if (idea && script) {
-      const newStory = { idea, script, timestamp: new Date().toISOString() };
-      this.history.unshift(newStory);
-      localStorage.setItem("story_history", JSON.stringify(this.history.slice(0, 10))); // שמירה של עד 10 סיפורים
-      this.loadHistory(); // עדכון תצוגת ההיסטוריה
+      this.history.unshift({ idea, script });
+      localStorage.setItem("story_history", JSON.stringify(this.history));
     }
+  }
+
+  async updateHistoryWithAudio() {
+    if (this.history.length > 0 && this.currentAudioBlob) {
+      const audioBase64 = await this.blobToBase64(this.currentAudioBlob);
+      this.history[0].audioBase64 = audioBase64;
+      localStorage.setItem("story_history", JSON.stringify(this.history));
+    }
+  }
+
+  async blobToBase64(blob) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  base64ToBlob(base64, type) {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type });
   }
 
   async generateScript() {
@@ -236,7 +310,7 @@ class StoryGenerator {
   }
 
   buildScriptPrompt(storyIdea) {
-    let prompt = `צור סיפור מעניין ומקורי עם ניקוד מלא (למשל: תַּלְמִיד, שְׁלוֹם, חַיִּים)`;
+    let prompt = `צור סיפור מעניין ומקורי`;
 
     if (storyIdea) {
       prompt += ` על בסיס הרעיון: ${storyIdea}`;
@@ -261,8 +335,7 @@ class StoryGenerator {
 הוראות חשובות:
 - כתב את הסיפור בפורמט של דובר אחד (קריין) שמספר את הסיפור
 - השתמש בפורמט: [קריין]: הטקסט של הסיפור
-- כתב בסגנון סיפור מסופר (לדוגמא: "חַיִּים נִכְנַס לַבַּיִת, אִמּוֹ קִבְּלָה אוֹתוֹ בְּאַהֲבָה")
-- הוסף ניקוד מלא לכל המילים בעברית (למשל: תַּלְמִיד, שְׁלוֹם, חַיִּים)
+- כתב בסגנון סיפור מסופר (לדוגמא: "חיים נכנס הביתה, אמו קיבלה אותו באהבה")
 - אל תכתב דיאלוגים ישירים, אלא תאר את מה שקורה
 
 התסריט צריך להיות:
@@ -271,7 +344,7 @@ class StoryGenerator {
 - עם קריין אחד שמספר את כל הסיפור
 
 דוגמה לפורמט:
-[קריין]: פַּעַם, בְּעִיר קְטַנָּה, חַי יֶלֶד שֵׁם דָּוִד. יוֹם אֶחָד הוּא יָצָא לַחְפֹּשׂ הַרְפַּתְקָאוֹת. הוּא פָּגַשׁ חָבֵר יָשָׁן שֶׁהִצִּיע לוֹ לָלֶכֶת יַחַד לַחְפֹּשׂ אוֹצָר נִסְתָּר...
+[קריין]: פעם, בעיר קטנה, חי ילד בשם דוד. יום אחד הוא יצא לחפש הרפתקאות. הוא פגש חבר ישן שהציע לו ללכת יחד לחפש אוצר נסתר...
 
 חשוב מאוד: החזר רק את התסריט עצמו ללא הקדמות, הסברים או טקסט נוסף. התחל ישירות עם השורה הראשונה של התסריט.`;
 
@@ -295,6 +368,7 @@ class StoryGenerator {
       }
 
       await this.generateAudioWithGeminiTTS(scriptContent);
+      await this.updateHistoryWithAudio();
       this.showStep(3);
     } catch (error) {
       console.error("Error generating audio:", error);
@@ -307,25 +381,33 @@ class StoryGenerator {
   async generateAudioWithGeminiTTS(scriptContent) {
     try {
       const segments = this.parseScriptSegments(scriptContent);
+
       if (segments.length === 0) {
         throw new Error("לא נמצאו קטעי דיבור בתסריט");
       }
 
       const allText = segments.map((seg) => seg.text).join(" ");
-      console.log("[v0] Sending request to TTS API with text:", allText.substring(0, 100) + "...");
 
-      let narrationPrompt = "Narrate this story dynamically: " + allText;
-      if (this.settings.narrationStyle) {
+      console.log("[v0] Starting Gemini TTS generation with single narrator, text length:", allText.length);
+
+      let narrationPrompt = "Narrate this story dynamically, adjusting tone, pace, and emotion to match the content: " + allText;
+
+      if (this.settings.narrationStyle && this.settings.narrationStyle !== "") {
         narrationPrompt = `Narrate this story in a ${this.settings.narrationStyle} style: ` + allText;
       }
 
       const requestBody = {
         contents: [{ parts: [{ text: narrationPrompt }] }],
         generationConfig: {
+          responseModalities: ["AUDIO"],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Achird" } },
-            speakingRate: this.settings.speakingRate || 1.0,
-            pitch: this.settings.voicePitch || 0,
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: "Achird",
+              },
+            },
+            speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
+            pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : undefined,
           },
         },
       };
@@ -336,31 +418,46 @@ class StoryGenerator {
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify(requestBody),
-          }
+          },
         );
-        console.log("[v0] API Response Status:", response.status);
+
         if (response.ok || response.status !== 429) break;
+
         console.log(`[v0] Retry ${attempt + 1} after 47s due to 429`);
         await new Promise((r) => setTimeout(r, 47000));
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[v0] API Error Details:", errorText);
         if (response.status === 429) {
           throw new Error("שגיאה 429: מלאה מכסת חינם, עבור לתשלום ב-https://console.cloud.google.com/");
         }
-        throw new Error(`HTTP error! status: ${response.status}, Details: ${errorText}`);
+        const errorText = await response.text();
+        console.error(`[v0] API Error:`, errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+
+      if (
+        !data.candidates ||
+        !data.candidates[0] ||
+        !data.candidates[0].content ||
+        !data.candidates[0].content.parts ||
+        !data.candidates[0].content.parts[0] ||
+        !data.candidates[0].content.parts[0].inlineData
+      ) {
         throw new Error("לא התקבל אודיו מה-API");
       }
 
       const audioData = data.candidates[0].content.parts[0].inlineData.data;
+      if (!audioData) {
+        throw new Error("נתוני האודיו ריקים");
+      }
+
       const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
       const wavBlob = this.createWavBlob(pcmBytes);
 
@@ -368,10 +465,16 @@ class StoryGenerator {
       console.log("[v0] Gemini TTS audio generation completed successfully");
     } catch (error) {
       console.error("[v0] Error in generateAudioWithGeminiTTS:", error);
+
       if (error.message.includes("429")) {
         throw error;
       }
-      throw new Error("שגיאה ב-API: בדוק את המפתח או פנה לתמיכה. פרטים: " + error.message);
+
+      if (error.message.includes("400") || error.message.includes("HTTP error")) {
+        throw new Error("שגיאה ב-API: נסה טקסט קצר יותר או בדוק את המפתח.");
+      }
+
+      throw error;
     }
   }
 
@@ -504,7 +607,7 @@ class StoryGenerator {
   }
 
   createSilenceBlob(durationMs) {
-    const sampleRate = 24000; // Match Gemini TTS sample rate
+    const sampleRate = 24000;
     const numSamples = Math.floor((sampleRate * durationMs) / 1000);
     const buffer = new ArrayBuffer(44 + numSamples * 2);
     const view = new DataView(buffer);
@@ -538,12 +641,12 @@ class StoryGenerator {
 
   createWavBlob(pcmData) {
     const numChannels = 1;
-    const sampleRate = 24000; // Gemini TTS uses 24kHz
+    const sampleRate = 24000;
     const bitsPerSample = 16;
     const bytesPerSample = bitsPerSample / 8;
     const blockAlign = numChannels * bytesPerSample;
     const byteRate = sampleRate * blockAlign;
-    const dataSize = pcmData.length * 2; // 16-bit samples
+    const dataSize = pcmData.length * 2;
     const fileSize = 44 + dataSize;
 
     const buffer = new ArrayBuffer(fileSize);
@@ -560,8 +663,8 @@ class StoryGenerator {
     writeString(8, "WAVE");
 
     writeString(12, "fmt ");
-    view.setUint32(16, 16, true); // chunk size
-    view.setUint16(20, 1, true); // audio format (PCM)
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
     view.setUint16(22, numChannels, true);
     view.setUint32(24, sampleRate, true);
     view.setUint32(28, byteRate, true);
