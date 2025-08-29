@@ -198,23 +198,10 @@ class StoryGenerator {
     this.extractSpeakersFromScript(story.script);
     this.setupSpeakersList();
     this.showStep(2);
-    if (story.audioBase64) {
-      this.currentAudioBlob = this.base64ToBlob(story.audioBase64, 'audio/wav');
-      const audioPlayer = document.getElementById("audioPlayer");
-      const audioPlaceholder = document.getElementById("audioPlaceholder");
-      const downloadButton = document.getElementById("downloadAudio");
-      const audioUrl = URL.createObjectURL(this.currentAudioBlob);
-      audioPlayer.src = audioUrl;
-      audioPlayer.style.display = "block";
-      audioPlaceholder.style.display = "none";
-      downloadButton.style.display = "inline-flex";
-      this.showStep(3);
-    } else {
-      this.currentAudioBlob = null;
-      document.getElementById("audioPlayer").style.display = "none";
-      document.getElementById("audioPlaceholder").style.display = "block";
-      document.getElementById("downloadAudio").style.display = "none";
-    }
+    this.currentAudioBlob = null;
+    document.getElementById("audioPlayer").style.display = "none";
+    document.getElementById("audioPlaceholder").style.display = "block";
+    document.getElementById("downloadAudio").style.display = "none";
     document.getElementById("historyModal").style.display = "none";
   }
 
@@ -223,34 +210,17 @@ class StoryGenerator {
     const script = this.currentScript;
     if (idea && script) {
       this.history.unshift({ idea, script });
-      localStorage.setItem("story_history", JSON.stringify(this.history));
+      // Limit history to 10 stories to prevent storage issues
+      if (this.history.length > 10) {
+        this.history.pop();
+      }
+      try {
+        localStorage.setItem("story_history", JSON.stringify(this.history));
+      } catch (error) {
+        console.error("Error saving to localStorage:", error);
+        this.showError("שגיאה בשמירת ההיסטוריה: מכסת האחסון מלאה. נסה למחוק סיפורים ישנים.");
+      }
     }
-  }
-
-  async updateHistoryWithAudio() {
-    if (this.history.length > 0 && this.currentAudioBlob) {
-      const audioBase64 = await this.blobToBase64(this.currentAudioBlob);
-      this.history[0].audioBase64 = audioBase64;
-      localStorage.setItem("story_history", JSON.stringify(this.history));
-    }
-  }
-
-  async blobToBase64(blob) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result.split(',')[1]);
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  base64ToBlob(base64, type) {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type });
   }
 
   async generateScript() {
@@ -368,7 +338,6 @@ class StoryGenerator {
       }
 
       await this.generateAudioWithGeminiTTS(scriptContent);
-      await this.updateHistoryWithAudio();
       this.showStep(3);
     } catch (error) {
       console.error("Error generating audio:", error);
