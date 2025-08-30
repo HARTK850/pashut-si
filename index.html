@@ -54,8 +54,10 @@
                                 <div class="select-option" data-value="ילדים">ילדים</div>
                                 <div class="select-option" data-value="מוטיבציה">מוטיבציה</div>
                                 <div class="select-option" data-value="אימה">אימה</div>
+                                <div class="select-option" data-value="other">אחר</div>
                             </div>
                         </div>
+                        <input type="text" id="storyStyleCustom" class="custom-input" placeholder="הזן סגנון סיפור מותאם אישית" style="display: none;">
                     </div>
                     <div class="setting-group">
                         <label>אורך סיפור (דקות):</label>
@@ -68,12 +70,32 @@
                                 <div class="select-option" data-value="2-5 דקות">2-5 דקות</div>
                                 <div class="select-option" data-value="5-10 דקות">5-10 דקות</div>
                                 <div class="select-option" data-value="10-15 דקות">10-15 דקות</div>
+                                <div class="select-option" data-value="other">אחר</div>
                             </div>
                         </div>
+                        <input type="text" id="storyLengthCustom" class="custom-input" placeholder="הזן אורך סיפור מותאם אישית (בדקות)" style="display: none;">
                     </div>
                 </div>
                 <h3>הגדרות ההקראה</h3>
                 <div class="settings-grid">
+                    <div class="setting-group">
+                        <label>קול ההקראה:</label>
+                        <div id="voiceNameTrigger" class="select-trigger">תן לגמיני להחליט</div>
+                        <div id="voiceNameModal" class="select-modal">
+                            <div class="select-modal-content">
+                                <span class="close">&times;</span>
+                                <div class="select-option" data-value="">תן לגמיני להחליט</div>
+                                <div class="select-option" data-value="Achird">Achird - קול גברי עמוק וסמכותי</div>
+                                <div class="select-option" data-value="Altair">Altair - קול גברי חם וידידותי</div>
+                                <div class="select-option" data-value="Deneb">Deneb - קול גברי נמרץ וצעיר</div>
+                                <div class="select-option" data-value="Sirius">Sirius - קול גברי רגוע ומקצועי</div>
+                                <div class="select-option" data-value="Vega">Vega - קול נשי בהיר ואנרגטי</div>
+                                <div class="select-option" data-value="Antares">Antares - קול נשי עמוק ומסתורי</div>
+                                <div class="select-option" data-value="Canopus">Canopus - קול נשי חם ומרגיע</div>
+                                <div class="select-option" data-value="Rigel">Rigel - קול נשי צלול ומלודי</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="setting-group">
                         <label>מהירות הקראה:</label>
                         <div id="speakingRateTrigger" class="select-trigger">תן לגמיני להחליט</div>
