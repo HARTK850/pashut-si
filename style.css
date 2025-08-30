@@ -161,6 +161,27 @@ body {
   background: #e1e8ed;
 }
 
+/* Custom Input Styles */
+.custom-input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 2px solid #e1e8ed;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: "Assistant", sans-serif;
+  background: #f8f9fa;
+  text-align: right;
+  transition: all 0.3s ease;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #4facfe;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+}
+
 /* History List */
 #historyList {
   max-height: 300px;
