@@ -71,8 +71,9 @@ class StoryGenerator {
 
   setupSelectModals() {
     const selectFields = [
-      { trigger: "storyStyleTrigger", modal: "storyStyleModal", setting: "storyStyle" },
-      { trigger: "storyLengthTrigger", modal: "storyLengthModal", setting: "storyLength" },
+      { trigger: "storyStyleTrigger", modal: "storyStyleModal", setting: "storyStyle", customInput: "storyStyleCustom" },
+      { trigger: "storyLengthTrigger", modal: "storyLengthModal", setting: "storyLength", customInput: "storyLengthCustom" },
+      { trigger: "voiceNameTrigger", modal: "voiceNameModal", setting: "voiceName" },
       { trigger: "speakingRateTrigger", modal: "speakingRateModal", setting: "speakingRate" },
       { trigger: "narrationStyleTrigger", modal: "narrationStyleModal", setting: "narrationStyle" },
       { trigger: "voicePitchTrigger", modal: "voicePitchModal", setting: "voicePitch" }
@@ -82,6 +83,7 @@ class StoryGenerator {
       const trigger = document.getElementById(field.trigger);
       const modal = document.getElementById(field.modal);
       const options = modal.querySelectorAll(".select-option");
+      const customInput = field.customInput ? document.getElementById(field.customInput) : null;
 
       trigger.addEventListener("click", () => {
         modal.style.display = "flex";
@@ -89,9 +91,22 @@ class StoryGenerator {
 
       options.forEach(option => {
         option.addEventListener("click", () => {
-          this.settings[field.setting] = option.getAttribute("data-value");
+          const value = option.getAttribute("data-value");
+          this.settings[field.setting] = value;
           trigger.textContent = option.textContent;
           modal.style.display = "none";
+
+          if (value === "other" && customInput) {
+            customInput.style.display = "block";
+            customInput.focus();
+            customInput.addEventListener("input", () => {
+              this.settings[field.setting] = customInput.value.trim();
+              trigger.textContent = customInput.value.trim() || option.textContent;
+            });
+          } else if (customInput) {
+            customInput.style.display = "none";
+            customInput.value = "";
+          }
         });
       });
     });
@@ -145,8 +160,9 @@ class StoryGenerator {
 
   loadSettings() {
     const selectFields = [
-      { id: "storyStyleTrigger", setting: "storyStyle", default: "תן לגמיני להחליט" },
-      { id: "storyLengthTrigger", setting: "storyLength", default: "תן לגמיני להחליט" },
+      { id: "storyStyleTrigger", setting: "storyStyle", default: "תן לגמיני להחליט", customInput: "storyStyleCustom" },
+      { id: "storyLengthTrigger", setting: "storyLength", default: "תן לגמיני להחליט", customInput: "storyLengthCustom" },
+      { id: "voiceNameTrigger", setting: "voiceName", default: "תן לגמיני להחליט" },
       { id: "speakingRateTrigger", setting: "speakingRate", default: "תן לגמיני להחליט" },
       { id: "narrationStyleTrigger", setting: "narrationStyle", default: "תן לגמיני להחליט (מומלץ)" },
       { id: "voicePitchTrigger", setting: "voicePitch", default: "תן לגמיני להחליט" }
@@ -154,21 +170,34 @@ class StoryGenerator {
 
     selectFields.forEach(field => {
       const elem = document.getElementById(field.id);
+      const customInput = field.customInput ? document.getElementById(field.customInput) : null;
       if (elem) {
         const options = document.querySelectorAll(`#${field.id.replace("Trigger", "Modal")} .select-option`);
         let selectedText = field.default;
+        let isCustom = false;
+
         options.forEach(option => {
           if (option.getAttribute("data-value") === this.settings[field.setting]) {
             selectedText = option.textContent;
           }
         });
+
+        if (this.settings[field.setting] && !options.forEach(option => option.getAttribute("data-value") === this.settings[field.setting]) && field.customInput) {
+          selectedText = this.settings[field.setting];
+          isCustom = true;
+        }
+
         elem.textContent = selectedText;
+        if (customInput && isCustom) {
+          customInput.style.display = "block";
+          customInput.value = this.settings[field.setting];
+        }
       }
     });
   }
 
   saveSettings() {
-    const fields = ["storyStyle", "storyLength", "speakingRate", "narrationStyle", "voicePitch"];
+    const fields = ["storyStyle", "storyLength", "voiceName", "speakingRate", "narrationStyle", "voicePitch"];
     fields.forEach(field => {
       if (this.settings[field] === undefined) {
         delete this.settings[field];
@@ -210,7 +239,6 @@ class StoryGenerator {
     const script = this.currentScript;
     if (idea && script) {
       this.history.unshift({ idea, script });
-      // Limit history to 10 stories to prevent storage issues
       if (this.history.length > 10) {
         this.history.pop();
       }
@@ -303,19 +331,23 @@ class StoryGenerator {
     prompt += `
 
 הוראות חשובות:
-- כתב את הסיפור בפורמט של דובר אחד (קריין) שמספר את הסיפור
-- השתמש בפורמט: [קריין]: הטקסט של הסיפור
-- כתב בסגנון סיפור מסופר (לדוגמא: "חיים נכנס הביתה, אמו קיבלה אותו באהבה")
+- כתב את הסיפור בפורמט של דובר אחד (קריין) שמספר את כל הסיפור, אך משתמש בסגנונות קול שונים עבור דמויות או הקשרים שונים
+- השתמש בפורמט: [דמות או תפקיד]: (תיאור סגנון הקול) הטקסט של הסיפור
+- תיאור סגנון הקול צריך להיות בסוגריים עגולים, למשל: (קול עמוק וסמכותי), (קול עייף ומבוגר), (קול קשוח)
+- כתב בסגנון סיפור מסופר (לדוגמה: "יואב נכנס הביתה, אמו קיבלה אותו בחיוך")
 - אל תכתב דיאלוגים ישירים, אלא תאר את מה שקורה
 - השתמש בניקוד עברי מלא בכל הטקסט של הסיפור כדי להפחית טעויות בהקראה
+- ודא שהסיפור תואם את אורך הקריאה המבוקש בדיוק
 
 התסריט צריך להיות:
 - מעניין ומושך
 - מתאים לקהל הרחב
-- עם קריין אחד שמספר את כל הסיפור
+- עם קריין אחד שמספר את כל הסיפור בסגנונות קול משתנים לפי ההקשר והדמויות
 
 דוגמה לפורמט:
-[קריין]: פַּעַם, בְּעִיר קְטַנָּה, חַי יֶלֶד בְּשֵׁם דָּוִד. יוֹם אֶחָד הוּא יָצָא לְחַפֵּשׂ הַרְפָּטְקָאוֹת. הוּא פָּגַשׁ חָבֵר יָשָׁן שֶׁהִצִּיעַ לוֹ לָלֶכֶת יַחַד לְחַפֵּשׂ אוֹצָר נִסְתָּר...
+[קריין]: (קוֹל עָמוֹק וְסַמְכוּתִי) יוֹאָב דַּנּוֹן, סוֹכֵן מוֹסָד מִסְפָּר אֶחָד, הָאִישׁ שֶׁהַמְּדִינָה חַיֶּבֶת לוֹ יוֹתֵר מִשֶּׁתּוּכַל לְשַׁלֵּם.
+[יואב]: (קוֹל עָיֵף וּמְבוֹגָּר) זֹאת הַכֹּל שֶׁקֶר.
+[חוקר]: (קוֹל קָשׁוּחַ) שֶׁקֶר? מָצָאנוּ אֶת הַכֶּסֶף בְּחֶשְׁבּוֹנְךָ, דַּנּוֹן.
 
 חשוב מאוד: החזר רק את התסריט עצמו ללא הקדמות, הסברים או טקסט נוסף. התחל ישירות עם השורה הראשונה של התסריט.`;
 
@@ -356,14 +388,20 @@ class StoryGenerator {
         throw new Error("לא נמצאו קטעי דיבור בתסריט");
       }
 
-      const allText = segments.map((seg) => seg.text).join(" ");
+      const allText = segments.map(seg => {
+        const styleMatch = seg.text.match(/^\(([^)]+)\)\s*(.+)$/);
+        if (styleMatch) {
+          return `[${seg.speaker}]: (${styleMatch[1]}) ${styleMatch[2]}`;
+        }
+        return `[${seg.speaker}]: ${seg.text}`;
+      }).join("\n");
 
       console.log("[v0] Starting Gemini TTS generation with single narrator, text length:", allText.length);
 
-      let narrationPrompt = "Narrate this story dynamically, adjusting tone, pace, and emotion to match the content: " + allText;
+      let narrationPrompt = `Narrate this story dynamically, using a single narrator who adjusts their voice style based on the descriptions in parentheses (e.g., (קול עמוק וסמכותי), (קול עייף ומבוגר)). Do not read the text within parentheses aloud, but use it to guide the voice style for the following text until the next style description. The narration should be engaging and match the context of the story. At the end of the story, add the following advertisement in a lively, promotional narration style (without including it in the displayed script): "סיפור זה הופק בטכנולוגיה החדשנית של 'פשוט סיפור'! רוצים ליצור סיפור משלכם? שלחו אימייל ל-y15761576@gmail.com עם הכותרת 'פשוט סיפור' וקבלו קישור לאתר שלנו!"\n\nText to narrate:\n${allText}`;
 
       if (this.settings.narrationStyle && this.settings.narrationStyle !== "") {
-        narrationPrompt = `Narrate this story in a ${this.settings.narrationStyle} style: ` + allText;
+        narrationPrompt = `Narrate this story in a ${this.settings.narrationStyle} style, but still adjust the voice based on the style descriptions in parentheses (e.g., (קול עמוק וסמכותי)). Do not read the text within parentheses aloud, but use it to guide the voice style for the following text until the next style description. At the end, add the following advertisement in a lively, promotional narration style (without including it in the displayed script): "סיפור זה הופק בטכנולוגיה החדשנית של 'פשוט סיפור'! רוצים ליצור סיפור משלכם? שלחו אימייל ל-y15761576@gmail.com עם הכותרת 'פשוט סיפור' וקבלו קישור לאתר שלנו!"\n\nText to narrate:\n${allText}`;
       }
 
       const requestBody = {
@@ -373,7 +411,7 @@ class StoryGenerator {
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: "Achird",
+                voiceName: this.settings.voiceName && this.settings.voiceName !== "" ? this.settings.voiceName : undefined,
               },
             },
             speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
@@ -616,7 +654,7 @@ class StoryGenerator {
     const bytesPerSample = bitsPerSample / 8;
     const blockAlign = numChannels * bytesPerSample;
     const byteRate = sampleRate * blockAlign;
-    const dataSize = pcmData.length * 2;
+    const dataSize = pcmData.length;
     const fileSize = 44 + dataSize;
 
     const buffer = new ArrayBuffer(fileSize);
@@ -644,9 +682,8 @@ class StoryGenerator {
     writeString(36, "data");
     view.setUint32(40, dataSize, true);
 
-    for (let i = 0; i < pcmData.length / 2; i++) {
-      const sample = (pcmData[i * 2 + 1] << 8) | pcmData[i * 2];
-      view.setInt16(44 + i * 2, sample, true);
+    for (let i = 0; i < pcmData.length; i++) {
+      view.setUint8(44 + i, pcmData[i]);
     }
 
     return new Blob([buffer], { type: "audio/wav" });
