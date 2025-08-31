@@ -325,12 +325,14 @@ class StoryGenerator {
     }
 
     prompt += `. התסריט צריך להיות בפורמט הבא: 
-[מספר]: [שם דובר]: (סגנון קול) טקסט לדיבור.
+[שם דובר]: (סגנון קול ייחודי לדמות זו) טקסט לדיבור.
 לדוגמה:
-[1]: [מספר]: (קול רגוע) שלום, אני המספר.
-[2]: [אליס]: (קול נרגש) וואו, זה מדהים!
+[קריין]: (קול עמוק וסמכותי) יואב דנון. סוכן מוסד מספר אחת. צלף אגדי. האיש שהמדינה הזאת חבה לו יותר משתוכל לשלם. עד שהכל התפוצץ.
+[יואב]: (נשמע מבוגר יותר, קולו עייף) זה הכל שקר.
+[חוקר]: (קול קשוח) שקר? מצאנו את הכסף בחשבון שלך, דנון. מי העביר לך את זה?
+[יואב]: (כועס) אני לעולם לא אבגוד במדינה שלי!
 
-השתמש בשמות דוברים שונים, כולל [מספר] להקראה כללית. אל תוסיף סוגריים, markdown, או כל טקסט נוסף בטקסט לדיבור עצמו. הטקסט לדיבור חייב להיות נקי לחלוטין מסוגריים או הערות. ודא שהטקסט כולל ניקוד תקין: נקודות, פסיקים, סימני שאלה וכו'.`;
+השתמש בשמות דוברים שונים, כולל [קריין] או [מספר] להקראה כללית. לכל דמות השתמש בסגנון קול ייחודי ומתאים לאופייה, כמו בדוגמה. אל תוסיף סוגריים בטקסט לדיבור עצמו. ודא שהטקסט כולל ניקוד תקין: נקודות, פסיקים, סימני שאלה וכו'.`;
 
     return prompt;
   }
@@ -366,132 +368,103 @@ class StoryGenerator {
       console.log("[v0] Starting Gemini TTS audio generation");
 
       const segments = this.parseScriptSegments(script);
-      const maxCharsPerRequest = 2000; // מגבלה משוערת מבוססת תיעוד; ניתן לשנות אם צריך
-      const chunkedSegments = [];
-      let currentChunk = [];
-      let currentLength = 0;
 
-      segments.forEach(seg => {
-        const segLength = seg.textToRead.length;
-        if (currentLength + segLength > maxCharsPerRequest && currentChunk.length > 0) {
-          chunkedSegments.push(currentChunk);
-          currentChunk = [];
-          currentLength = 0;
-        }
-        currentChunk.push(seg);
-        currentLength += segLength;
-      });
-      if (currentChunk.length > 0) {
-        chunkedSegments.push(currentChunk);
+      let narrationText = segments.map((seg, index) => {
+        const style = seg.style ? `(${seg.style})` : "";
+        return `[${index + 1}] ${seg.speaker}: ${style} ${seg.textToRead}`;
+      }).join("\n");
+
+      let styleInstructions = segments.map((seg, index) => ({
+        segmentNumber: index + 1,
+        speaker: seg.speaker,
+        style: seg.style || "default",
+        startText: seg.textToRead.substring(0, 20)
+      }));
+
+      let narrationPrompt = `Narrate the following story. **DO NOT READ ANY TEXT WITHIN PARENTHESES** (e.g., (קול עמוק וסמכותי)) aloud; these are style instructions only and must be used to adjust the voice style for the corresponding segment. At the end, add this advertisement in a lively, promotional voice (do not include it in the displayed script): "סיפור זה הופק בטכנולוגיה החדשנית של 'פשוט סיפור'! רוצים ליצור סיפור משלכם? שלחו אימייל ל-y15761576@gmail.com עם הכותרת 'פשוט סיפור' וקבלו קישור לאתר שלנו!"
+
+Style instructions for each segment:
+${styleInstructions.map(inst => `${inst.segmentNumber}. [${inst.speaker}]: Use a "${inst.style}" voice for text starting with "${inst.startText}..."`).join("\n")}
+
+Text to narrate (only read the text, ignoring any parentheses):
+${narrationText}`;
+
+      if (this.settings.narrationStyle && this.settings.narrationStyle !== "") {
+        narrationPrompt = `Narrate the following story in a ${this.settings.narrationStyle} style, but adjust the voice for each segment based on the provided style instructions. **DO NOT READ ANY TEXT WITHIN PARENTHESES** (e.g., (קול עמוק וסמכותי)) aloud; these are style instructions only and must be used to adjust the voice style for the corresponding segment. At the end, add this advertisement in a lively, promotional voice (do not include it in the displayed script): "סיפור זה הופק בטכנולוגיה החדשנית של 'פשוט סיפור'! רוצים ליצור סיפור משלכם? שלחו אימייל ל-y15761576@gmail.com עם הכותרת 'פשוט סיפור' וקבלו קישור לאתר שלנו!"
+
+Style instructions for each segment:
+${styleInstructions.map(inst => `${inst.segmentNumber}. [${inst.speaker}]: Use a "${inst.style}" voice for text starting with "${inst.startText}..."`).join("\n")}
+
+Text to narrate (only read the text, ignoring any parentheses):
+${narrationText}`;
       }
 
-      const audioBlobs = [];
-      for (const chunk of chunkedSegments) {
-        const chunkNarrationText = chunk.map((seg, index) => {
-          const style = seg.style ? `(${seg.style})` : "";
-          return `[${index + 1}] ${seg.speaker}: ${style} ${seg.textToRead}`;
-        }).join("\n");
-
-        const chunkStyleInstructions = chunk.map((seg, index) => ({
-          segmentNumber: index + 1,
-          speaker: seg.speaker,
-          style: seg.style || "default",
-          startText: seg.textToRead.substring(0, 20)
-        }));
-
-        let narrationPrompt = `Narrate the following story. **DO NOT READ ANY TEXT WITHIN PARENTHESES** (e.g., (קול עמוק וסמכותי)) aloud; these are style instructions only and must be used to adjust the voice style for the corresponding segment.
-
-Style instructions for each segment:
-${chunkStyleInstructions.map(inst => `${inst.segmentNumber}. [${inst.speaker}]: Use a "${inst.style}" voice for text starting with "${inst.startText}..."`).join("\n")}
-
-Text to narrate (only read the text, ignoring any parentheses):
-${chunkNarrationText}`;
-
-        if (this.settings.narrationStyle && this.settings.narrationStyle !== "") {
-          narrationPrompt = `Narrate the following story in a ${this.settings.narrationStyle} style, but adjust the voice for each segment based on the provided style instructions. **DO NOT READ ANY TEXT WITHIN PARENTHESES** (e.g., (קול עמוק וסמכותי)) aloud; these are style instructions only and must be used to adjust the voice style for the corresponding segment.
-
-Style instructions for each segment:
-${chunkStyleInstructions.map(inst => `${inst.segmentNumber}. [${inst.speaker}]: Use a "${inst.style}" voice for text starting with "${inst.startText}..."`).join("\n")}
-
-Text to narrate (only read the text, ignoring any parentheses):
-${chunkNarrationText}`;
-        }
-
-        // הוסף פרסומת רק לחלק האחרון
-        if (chunk === chunkedSegments[chunkedSegments.length - 1]) {
-          narrationPrompt += `\nAt the end, add this advertisement in a lively, promotional voice (do not include it in the displayed script): "סיפור זה הופק בטכנולוגיה החדשנית של 'פשוט סיפור'! רוצים ליצור סיפור משלכם? שלחו אימייל ל-y15761576@gmail.com עם הכותרת 'פשוט סיפור' וקבלו קישור לאתר שלנו!"`;
-        }
-
-        const requestBody = {
-          contents: [{ parts: [{ text: narrationPrompt }] }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: this.settings.voiceName && this.settings.voiceName !== "" ? this.settings.voiceName.toLowerCase() : undefined,
-                },
+      const requestBody = {
+        contents: [{ parts: [{ text: narrationPrompt }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: this.settings.voiceName && this.settings.voiceName !== "" ? this.settings.voiceName.toLowerCase() : undefined,
               },
-              speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
-              pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : undefined,
             },
+            speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
+            pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : undefined,
           },
-        };
+        },
+      };
 
-        let response;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(requestBody),
+      let response;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-          );
+            body: JSON.stringify(requestBody),
+          },
+        );
 
-          if (response.ok || response.status !== 429) break;
+        if (response.ok || response.status !== 429) break;
 
-          console.log(`[v0] Retry ${attempt + 1} after 47s due to 429`);
-          await new Promise((r) => setTimeout(r, 47000));
-        }
-
-        if (!response.ok) {
-          if (response.status === 429) {
-            throw new Error("שגיאה 429: מלאה מכסת חינם, עבור לתשלום ב-https://console.cloud.google.com/");
-          }
-          const errorText = await response.text();
-          console.error(`[v0] API Error:`, errorText);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (
-          !data.candidates ||
-          !data.candidates[0] ||
-          !data.candidates[0].content ||
-          !data.candidates[0].content.parts ||
-          !data.candidates[0].content.parts[0] ||
-          !data.candidates[0].content.parts[0].inlineData
-        ) {
-          throw new Error("לא התקבל אודיו מה-API");
-        }
-
-        const audioData = data.candidates[0].content.parts[0].inlineData.data;
-        if (!audioData) {
-          throw new Error("נתוני האודיו ריקים");
-        }
-
-        const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
-        const wavBlob = this.createWavBlob(pcmBytes);
-        audioBlobs.push(wavBlob);
+        console.log(`[v0] Retry ${attempt + 1} after 47s due to 429`);
+        await new Promise((r) => setTimeout(r, 47000));
       }
 
-      // הדבק את כל החלקים
-      const combinedAudioBlob = await this.concatenateAudioBlobs(audioBlobs);
-      this.handleAudioResponse(combinedAudioBlob);
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error("שגיאה 429: מלאה מכסת חינם, עבור לתשלום ב-https://console.cloud.google.com/");
+        }
+        const errorText = await response.text();
+        console.error(`[v0] API Error:`, errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (
+        !data.candidates ||
+        !data.candidates[0] ||
+        !data.candidates[0].content ||
+        !data.candidates[0].content.parts ||
+        !data.candidates[0].content.parts[0] ||
+        !data.candidates[0].content.parts[0].inlineData
+      ) {
+        throw new Error("לא התקבל אודיו מה-API");
+      }
+
+      const audioData = data.candidates[0].content.parts[0].inlineData.data;
+      if (!audioData) {
+        throw new Error("נתוני האודיו ריקים");
+      }
+
+      const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
+      const wavBlob = this.createWavBlob(pcmBytes);
+
+      this.handleAudioResponse(wavBlob);
       console.log("[v0] Gemini TTS audio generation completed successfully");
     } catch (error) {
       console.error("[v0] Error in generateAudioWithGeminiTTS:", error);
@@ -508,79 +481,6 @@ ${chunkNarrationText}`;
     }
   }
 
-  async concatenateAudioBlobs(blobs) {
-    if (blobs.length === 0) return null;
-    if (blobs.length === 1) return blobs[0];
-
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const buffers = await Promise.all(blobs.map(blob => {
-      return blob.arrayBuffer().then(ab => audioContext.decodeAudioData(ab));
-    }));
-
-    const totalDuration = buffers.reduce((sum, buf) => sum + buf.duration, 0);
-    const sampleRate = buffers[0].sampleRate;
-    const outputBuffer = audioContext.createBuffer(1, totalDuration * sampleRate, sampleRate);
-
-    let offset = 0;
-    buffers.forEach(buf => {
-      outputBuffer.copyToChannel(buf.getChannelData(0), 0, offset);
-      offset += buf.length;
-    });
-
-    return new Promise((resolve) => {
-      const offlineContext = new OfflineAudioContext(1, outputBuffer.length, sampleRate);
-      const source = offlineContext.createBufferSource();
-      source.buffer = outputBuffer;
-      source.connect(offlineContext.destination);
-      source.start(0);
-      offlineContext.startRendering().then(renderedBuffer => {
-        const wavBlob = this.bufferToWav(renderedBuffer);
-        resolve(wavBlob);
-      });
-    });
-  }
-
-  bufferToWav(buffer) {
-    const numChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const format = 1; // PCM
-    const bitDepth = 16;
-
-    const bytesPerSample = bitDepth / 8;
-    const blockAlign = numChannels * bytesPerSample;
-    const byteRate = sampleRate * blockAlign;
-    const dataSize = buffer.length * numChannels * bytesPerSample;
-    const fileSize = 44 + dataSize - 8;
-
-    const wavBuffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(wavBuffer);
-
-    view.setUint32(0, 0x52494646, false); // RIFF
-    view.setUint32(4, fileSize, true);
-    view.setUint32(8, 0x57415645, false); // WAVE
-    view.setUint32(12, 0x666d7420, false); // fmt 
-    view.setUint32(16, 16, true);
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitDepth, true);
-    view.setUint32(36, 0x64617461, false); // data
-    view.setUint32(40, dataSize, true);
-
-    let offset = 44;
-    for (let i = 0; i < buffer.numberOfChannels; i++) {
-      const channelData = buffer.getChannelData(i);
-      for (let j = 0; j < channelData.length; j++) {
-        view.setInt16(offset, channelData[j] * 0x7FFF, true);
-        offset += 2;
-      }
-    }
-
-    return new Blob([wavBuffer], { type: 'audio/wav' });
-  }
-
   parseScriptSegments(script) {
     const lines = script.split("\n");
     const segments = [];
@@ -591,12 +491,14 @@ ${chunkNarrationText}`;
       if (match) {
         const speaker = match[1].trim();
         const style = match[2] ? match[2].trim() : "";
-        let textToRead = match[3].trim();
-
-        // הסר סוגריים אם קיימים (תיקון נוסף)
-        textToRead = textToRead.replace(/\([^)]*\)/g, '').trim();
+        const textToRead = match[3].trim();
 
         if (!speaker.includes("צליל") && !speaker.includes("מוזיקה") && textToRead) {
+          // Ensure no parentheses remain in textToRead
+          if (textToRead.match(/\(.*?\)/)) {
+            console.warn(`[v0] Warning: Parentheses found in textToRead for speaker ${speaker}: ${textToRead}`);
+            continue; // Skip malformed segments
+          }
           segments.push({ speaker, style, textToRead });
         }
       }
