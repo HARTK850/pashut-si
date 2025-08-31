@@ -265,7 +265,7 @@ class StoryGenerator {
       const prompt = this.buildScriptPrompt(storyIdea);
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`,
         {
           method: "POST",
           headers: {
@@ -316,40 +316,21 @@ class StoryGenerator {
       prompt += ` עם רעיון מקורי ומעניין`;
     }
 
-    if (this.settings.storyStyle) {
-      prompt += `\n- סגנון: ${this.settings.storyStyle}`;
-    } else {
-      prompt += `\n- בחר סגנון מתאים (כמו דרמה, קומדיה, הרפתקאות) בעצמך`;
+    if (this.settings.storyStyle && this.settings.storyStyle !== "") {
+      prompt += ` בסגנון ${this.settings.storyStyle}`;
     }
 
-    if (this.settings.storyLength) {
-      prompt += `\n- הסיפור צריך להיות באורך ${this.settings.storyLength} דקות קריאה`;
-    } else {
-      prompt += `\n- הסיפור צריך להיות באורך 2-5 דקות קריאה`;
+    if (this.settings.storyLength && this.settings.storyLength !== "") {
+      prompt += ` באורך של בערך ${this.settings.storyLength} דקות הקראה`;
     }
 
-    prompt += `
+    prompt += `. התסריט צריך להיות בפורמט הבא: 
+[מספר]: [שם דובר]: (סגנון קול) טקסט לדיבור.
+לדוגמה:
+[1]: [מספר]: (קול רגוע) שלום, אני המספר.
+[2]: [אליס]: (קול נרגש) וואו, זה מדהים!
 
-הוראות חשובות:
-- כתב את הסיפור בפורמט של דובר אחד (קריין) שמספר את כל הסיפור, אך משתמש בסגנונות קול שונים עבור דמויות או הקשרים שונים
-- השתמש בפורמט: [דמות או תפקיד]: (תיאור סגנון הקול) הטקסט של הסיפור
-- תיאור סגנון הקול צריך להיות בסוגריים עגולים, למשל: (קול עמוק וסמכותי), (קול עייף ומבוגר), (קול קשוח)
-- כתב בסגנון סיפור מסופר (לדוגמה: "יואב נכנס הביתה, אמו קיבלה אותו בחיוך")
-- אל תכתב דיאלוגים ישירים, אלא תאר את מה שקורה
-- השתמש בניקוד עברי מלא בכל הטקסט של הסיפור כדי להפחית טעויות בהקראה
-- ודא שהסיפור תואם את אורך הקריאה המבוקש בדיוק
-
-התסריט צריך להיות:
-- מעניין ומושך
-- מתאים לקהל הרחב
-- עם קריין אחד שמספר את כל הסיפור בסגנונות קול משתנים לפי ההקשר והדמויות
-
-דוגמה לפורמט:
-[קריין]: (קוֹל עָמוֹק וְסַמְכוּתִי) יוֹאָב דַּנּוֹן, סוֹכֵן מוֹסָד מִסְפָּר אֶחָד, הָאִישׁ שֶׁהַמְּדִינָה חַיֶּבֶת לוֹ יוֹתֵר מִשֶּׁתּוּכַל לְשַׁלֵּם.
-[יואב]: (קוֹל עָיֵף וּמְבוֹגָּר) זֹאת הַכֹּל שֶׁקֶר.
-[חוקר]: (קוֹל קָשׁוּחַ) שֶׁקֶר? מָצָאנוּ אֶת הַכֶּסֶף בְּחֶשְׁבּוֹנְךָ, דַּנּוֹן.
-
-חשוב מאוד: החזר רק את התסריט עצמו ללא הקדמות, הסברים או טקסט נוסף. התחל ישירות עם השורה הראשונה של התסריט.`;
+השתמש בשמות דוברים שונים, כולל [מספר] להקראה כללית. אל תוסיף סוגריים בטקסט לדיבור עצמו.`;
 
     return prompt;
   }
@@ -364,13 +345,13 @@ class StoryGenerator {
     this.setLoading(button, spinner, btnText, true);
 
     try {
-      const scriptContent = document.getElementById("scriptContent").value.trim();
-
-      if (!scriptContent) {
-        throw new Error("אנא הכנס תסריט לפני יצירת השמע");
+      const script = document.getElementById("scriptContent").value.trim();
+      if (!script) {
+        throw new Error("אין תסריט ליצירת שמע");
       }
 
-      await this.generateAudioWithGeminiTTS(scriptContent);
+      this.currentScript = script;
+      await this.generateAudioWithGeminiTTS(script);
       this.showStep(3);
     } catch (error) {
       console.error("Error generating audio:", error);
@@ -380,36 +361,25 @@ class StoryGenerator {
     }
   }
 
-  async generateAudioWithGeminiTTS(scriptContent) {
+  async generateAudioWithGeminiTTS(script) {
     try {
-      const segments = this.parseScriptSegments(scriptContent);
+      console.log("[v0] Starting Gemini TTS audio generation");
 
-      if (segments.length === 0) {
-        throw new Error("לא נמצאו קטעי דיבור בתסריט");
-      }
+      const segments = this.parseScriptSegments(script);
 
-      // Create clean narration text (without style descriptions)
-      const narrationText = segments.map(seg => `[${seg.speaker}]: ${seg.textToRead}`).join("\n");
+      let narrationText = segments.map((seg, index) => {
+        const style = seg.style ? `(${seg.style})` : "";
+        return `[${index + 1}] ${seg.speaker}: ${style} ${seg.textToRead}`;
+      }).join("\n");
 
-      // Create style instructions
-      const styleInstructions = segments.map((seg, index) => ({
+      let styleInstructions = segments.map((seg, index) => ({
         segmentNumber: index + 1,
         speaker: seg.speaker,
-        style: seg.style || "קול ניטרלי",
-        startText: seg.textToRead.substring(0, 10).replace(/\n/g, " ") // Short identifier for matching
+        style: seg.style || "default",
+        startText: seg.textToRead.substring(0, 20)
       }));
 
-      // Validate that no style descriptions remain in narrationText
-      if (narrationText.match(/\(.*?\)/)) {
-        console.warn("[v0] Warning: Style descriptions found in narration text, cleaning up...");
-        throw new Error("טקסט ההקראה מכיל תיאורי סגנון בסוגריים, אנא בדוק את התסריט.");
-      }
-
-      console.log("[v0] Starting Gemini TTS generation with single narrator, text length:", narrationText.length);
-      console.log("[v0] Style instructions:", styleInstructions);
-
-      // Simplified prompt to ensure style descriptions are not read
-      let narrationPrompt = `Narrate the following story using a single narrator who adjusts their voice style based on the provided style instructions. **DO NOT READ ANY TEXT WITHIN PARENTHESES** (e.g., (קול עמוק וסמכותי)) aloud; these are style instructions only and must be used to adjust the voice style for the corresponding segment. The narration should be engaging and match the story's context. At the end of the story, add this advertisement in a lively, promotional voice (do not include it in the displayed script): "סיפור זה הופק בטכנולוגיה החדשנית של 'פשוט סיפור'! רוצים ליצור סיפור משלכם? שלחו אימייל ל-y15761576@gmail.com עם הכותרת 'פשוט סיפור' וקבלו קישור לאתר שלנו!"
+      let narrationPrompt = `Narrate the following story. **DO NOT READ ANY TEXT WITHIN PARENTHESES** (e.g., (קול עמוק וסמכותי)) aloud; these are style instructions only and must be used to adjust the voice style for the corresponding segment. At the end, add this advertisement in a lively, promotional voice (do not include it in the displayed script): "סיפור זה הופק בטכנולוגיה החדשנית של 'פשוט סיפור'! רוצים ליצור סיפור משלכם? שלחו אימייל ל-y15761576@gmail.com עם הכותרת 'פשוט סיפור' וקבלו קישור לאתר שלנו!"
 
 Style instructions for each segment:
 ${styleInstructions.map(inst => `${inst.segmentNumber}. [${inst.speaker}]: Use a "${inst.style}" voice for text starting with "${inst.startText}..."`).join("\n")}
@@ -434,7 +404,7 @@ ${narrationText}`;
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: this.settings.voiceName && this.settings.voiceName !== "" ? this.settings.voiceName : undefined,
+                voiceName: this.settings.voiceName && this.settings.voiceName !== "" ? this.settings.voiceName.toLowerCase() : undefined,
               },
             },
             speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
@@ -446,7 +416,7 @@ ${narrationText}`;
       let response;
       for (let attempt = 0; attempt < 3; attempt++) {
         response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
           {
             method: "POST",
             headers: {
