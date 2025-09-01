@@ -5,35 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>פשוט סיפור</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Alef:wght@400;700&family=Assistant:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="script.js" defer></script>
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <header class="header">
             <h1 class="logo">פשוט סיפור</h1>
             <p class="tagline">מחולל סיפורים עם בינה מלאכותית</p>
             <div class="top-right-buttons">
-                <button id="settingsBtn" class="circle-btn" title="הגדרות">⚙️</button>
-                <button id="historyBtn" class="circle-btn" title="היסטוריית סיפורים">📜</button>
-                <button id="apiKeyBtn" class="circle-btn" title="מפתח API">🔑</button>
+                <button class="circle-btn" id="settingsBtn" title="הגדרות">⚙️</button>
+                <button class="circle-btn" id="historyBtn" title="היסטוריית סיפורים">📜</button>
+                <button class="circle-btn" id="apiKeyBtn" title="הגדרת API Key">🔑</button>
             </div>
-        </div>
+        </header>
 
-        <!-- API Key Modal -->
-        <div id="apiKeyModal" class="modal">
+        <div class="modal" id="apiKeyModal">
             <div class="modal-content">
                 <span class="close">&times;</span>
                 <h2>הגדרת API Key</h2>
-                <input type="password" id="apiKey" placeholder="הכנס כאן את מפתח ה-API של Gemini">
-                <button id="saveApiKey" class="btn btn-primary">שמור</button>
-                <p id="apiStatus" class="status-message"></p>
+                <div class="input-group">
+                    <input type="text" id="apiKey" placeholder="הכנס מפתח API של Gemini">
+                    <p id="apiStatus" class="status-message"></p>
+                    <button class="btn btn-primary" id="saveApiKey">שמור</button>
+                </div>
             </div>
         </div>
 
-        <!-- Settings Modal -->
-        <div id="settingsModal" class="modal">
+        <div class="modal" id="settingsModal">
             <div class="modal-content">
                 <span class="close">&times;</span>
                 <h2>הגדרות</h2>
@@ -41,13 +39,13 @@
                 <div class="settings-grid">
                     <div class="setting-group">
                         <label>סגנון סיפור:</label>
-                        <div id="storyStyleTrigger" class="select-trigger">תן לגמיני להחליט</div>
-                        <input type="text" id="storyStyleCustom" class="custom-input" style="display: none;" placeholder="סגנון מותאם אישית">
+                        <div class="select-trigger" id="storyStyleTrigger">תן לגמיני להחליט</div>
+                        <input type="text" class="custom-input" id="storyStyleCustom" style="display: none;">
                     </div>
                     <div class="setting-group">
                         <label>אורך סיפור (דקות):</label>
-                        <div id="storyLengthTrigger" class="select-trigger">תן לגמיני להחליט</div>
-                        <input type="text" id="storyLengthCustom" class="custom-input" style="display: none;" placeholder="אורך מותאם אישית">
+                        <div class="select-trigger" id="storyLengthTrigger">תן לגמיני להחליט</div>
+                        <input type="text" class="custom-input" id="storyLengthCustom" style="display: none;">
                     </div>
                 </div>
 
@@ -55,29 +53,28 @@
                 <div class="settings-grid">
                     <div class="setting-group">
                         <label>קול ההקראה:</label>
-                        <div id="voiceNameTrigger" class="select-trigger">תן לגמיני להחליט</div>
+                        <div class="select-trigger" id="voiceNameTrigger">תן לגמיני להחליט</div>
                     </div>
                     <div class="setting-group">
                         <label>מהירות הקראה:</label>
-                        <div id="speakingRateTrigger" class="select-trigger">תן לגמיני להחליט</div>
+                        <div class="select-trigger" id="speakingRateTrigger">תן לגמיני להחליט</div>
                     </div>
                     <div class="setting-group">
                         <label>סגנון הקראה:</label>
-                        <div id="narrationStyleTrigger" class="select-trigger">תן לגמיני להחליט (מומלץ)</div>
+                        <div class="select-trigger" id="narrationStyleTrigger">תן לגמיני להחליט (מומלץ)</div>
                         <p class="warning">שימוש בסגנון קבוע פחות מומלץ, כי אז ההקראה תהיה אחידה ולא תשתנה לפי ההקשר בסיפור.</p>
                     </div>
                     <div class="setting-group">
                         <label>גובה קול (Pitch):</label>
-                        <div id="voicePitchTrigger" class="select-trigger">תן לגמיני להחליט</div>
+                        <div class="select-trigger" id="voicePitchTrigger">תן לגמיני להחליט</div>
                     </div>
                 </div>
 
-                <button id="saveSettings" class="btn btn-primary">שמור הגדרות</button>
+                <button class="btn btn-primary" id="saveSettings">שמור הגדרות</button>
             </div>
         </div>
 
-        <!-- History Modal -->
-        <div id="historyModal" class="modal">
+        <div class="modal" id="historyModal">
             <div class="modal-content">
                 <span class="close">&times;</span>
                 <h2>היסטוריית סיפורים</h2>
@@ -85,11 +82,10 @@
             </div>
         </div>
 
-        <!-- Select Modals -->
-        <div id="storyStyleModal" class="select-modal">
+        <div class="select-modal" id="storyStyleModal">
             <div class="select-modal-content">
                 <span class="close">&times;</span>
-                <div class="select-option" data-value="">תן לגמיני להחליט</div>
+                <div class="select-option" data-value="default">תן לגמיני להחליט</div>
                 <div class="select-option" data-value="drama">דרמה</div>
                 <div class="select-option" data-value="comedy">קומדיה</div>
                 <div class="select-option" data-value="adventure">הרפתקאות</div>
@@ -97,17 +93,17 @@
                 <div class="select-option" data-value="sci-fi">מדע בדיוני</div>
                 <div class="select-option" data-value="fantasy">פנטזיה</div>
                 <div class="select-option" data-value="historical">היסטורי</div>
-                <div class="select-option" data-value="children">ילדים</div>
+                <div class="select-option" data-value="kids">ילדים</div>
                 <div class="select-option" data-value="motivational">מוטיבציה</div>
                 <div class="select-option" data-value="horror">אימה</div>
                 <div class="select-option" data-value="other">אחר</div>
             </div>
         </div>
 
-        <div id="storyLengthModal" class="select-modal">
+        <div class="select-modal" id="storyLengthModal">
             <div class="select-modal-content">
                 <span class="close">&times;</span>
-                <div class="select-option" data-value="">תן לגמיני להחליט</div>
+                <div class="select-option" data-value="default">תן לגמיני להחליט</div>
                 <div class="select-option" data-value="1-2">1-2 דקות</div>
                 <div class="select-option" data-value="2-5">2-5 דקות</div>
                 <div class="select-option" data-value="5-10">5-10 דקות</div>
@@ -116,47 +112,47 @@
             </div>
         </div>
 
-        <div id="voiceNameModal" class="select-modal">
+        <div class="select-modal" id="voiceNameModal">
             <div class="select-modal-content">
                 <span class="close">&times;</span>
-                <div class="select-option" data-value="">תן לגמיני להחליט</div>
-                <div class="select-option" data-value="achernar">Achernar - קול רך</div>
-                <div class="select-option" data-value="achird">Achird - קול ידידותי</div>
-                <div class="select-option" data-value="alginib">Alginib - קול מחוספס</div>
-                <div class="select-option" data-value="algieba">Algieba - קול חלק</div>
-                <div class="select-option" data-value="alnilam">Alnilam - קול תקיף</div>
-                <div class="select-option" data-value="aoede">Aoede - קול קליל</div>
-                <div class="select-option" data-value="autonoe">Autonoe - קול בהיר</div>
-                <div class="select-option" data-value="callirrhoe">Callirrhoe - קול נינוח</div>
-                <div class="select-option" data-value="charon">Charon - קול מידעי</div>
-                <div class="select-option" data-value="despina">Despina - קול חלק</div>
-                <div class="select-option" data-value="enceladus">Enceladus - קול נשימתי</div>
-                <div class="select-option" data-value="erinome">Erinome - קול צלול</div>
-                <div class="select-option" data-value="fenrir">Fenrir - קול מתרגש</div>
-                <div class="select-option" data-value="gacrux">Gacrux - קול בוגר</div>
-                <div class="select-option" data-value="iapetus">Iapetus - קול צלול</div>
-                <div class="select-option" data-value="kore">Kore - קול תקיף</div>
-                <div class="select-option" data-value="laomedeia">Laomedeia - קול עליז</div>
-                <div class="select-option" data-value="leda">Leda - קול צעיר</div>
-                <div class="select-option" data-value="orus">Orus - קול תקיף</div>
-                <div class="select-option" data-value="puck">Puck - קול עליז</div>
-                <div class="select-option" data-value="pulcherrima">Pulcherrima - קול ישיר</div>
-                <div class="select-option" data-value="rasalgethi">Rasalgethi - קול מידעי</div>
-                <div class="select-option" data-value="sadachbia">Sadachbia - קול תוסס</div>
-                <div class="select-option" data-value="sadaltager">Sadaltager - קול בקיא</div>
-                <div class="select-option" data-value="schedar">Schedar - קול אחיד</div>
-                <div class="select-option" data-value="sulafat">Sulafat - קול חם</div>
-                <div class="select-option" data-value="umbriel">Umbriel - קול נינוח</div>
-                <div class="select-option" data-value="vindemiatrix">Vindemiatrix - קול עדין</div>
-                <div class="select-option" data-value="zephyr">Zephyr - קול בהיר</div>
-                <div class="select-option" data-value="zubenelgenubi">Zubenelgenubi - קול לא רשמי</div>
+                <div class="select-option" data-value="default">תן לגמיני להחליט</div>
+                <div class="select-option" data-value="Achernar">Achernar - קול רך (גברי)</div>
+                <div class="select-option" data-value="Alginib">Alginib - קול מחוספס (גברי)</div>
+                <div class="select-option" data-value="Algieba">Algieba - קול חלק (גברי)</div>
+                <div class="select-option" data-value="Alnilam">Alnilam - קול תקיף (גברי)</div>
+                <div class="select-option" data-value="Charon">Charon - קול מידעי (גברי)</div>
+                <div class="select-option" data-value="Enceladus">Enceladus - קול נשימתי (גברי)</div>
+                <div class="select-option" data-value="Fenrir">Fenrir - קול מתרגש (גברי)</div>
+                <div class="select-option" data-value="Gacrux">Gacrux - קול בוגר (גברי)</div>
+                <div class="select-option" data-value="Iapetus">Iapetus - קול צלול (גברי)</div>
+                <div class="select-option" data-value="Orus">Orus - קול תקיף (גברי)</div>
+                <div class="select-option" data-value="Rasalgethi">Rasalgethi - קול מידעי (גברי)</div>
+                <div class="select-option" data-value="Sadaltager">Sadaltager - קול בקיא (גברי)</div>
+                <div class="select-option" data-value="Zubenelgenubi">Zubenelgenubi - קול לא רשמי (גברי)</div>
+                <div class="select-option" data-value="Achird">Achird - קול ידידותי (נשי)</div>
+                <div class="select-option" data-value="Aoede">Aoede - קול קליל (נשי)</div>
+                <div class="select-option" data-value="Autonoe">Autonoe - קול בהיר (נשי)</div>
+                <div class="select-option" data-value="Callirrhoe">Callirrhoe - קול נינוח (נשי)</div>
+                <div class="select-option" data-value="Despina">Despina - קול חלק (נשי)</div>
+                <div class="select-option" data-value="Erinome">Erinome - קול צלול (נשי)</div>
+                <div class="select-option" data-value="Kore">Kore - קול תקיף (נשי)</div>
+                <div class="select-option" data-value="Laomedeia">Laomedeia - קול עליז (נשי)</div>
+                <div class="select-option" data-value="Leda">Leda - קול צעיר (נשי)</div>
+                <div class="select-option" data-value="Puck">Puck - קול עליז (נשי)</div>
+                <div class="select-option" data-value="Pulcherrima">Pulcherrima - קול ישיר (נשי)</div>
+                <div class="select-option" data-value="Sadachbia">Sadachbia - קול תוסס (נשי)</div>
+                <div class="select-option" data-value="Schedar">Schedar - קול אחיד (נשי)</div>
+                <div class="select-option" data-value="Sulafat">Sulafat - קול חם (נשי)</div>
+                <div class="select-option" data-value="Umbriel">Umbriel - קול נינוח (נשי)</div>
+                <div class="select-option" data-value="Vindemiatrix">Vindemiatrix - קול עדין (נשי)</div>
+                <div class="select-option" data-value="Zephyr">Zephyr - קול בהיר (נשי)</div>
             </div>
         </div>
 
-        <div id="speakingRateModal" class="select-modal">
+        <div class="select-modal" id="speakingRateModal">
             <div class="select-modal-content">
                 <span class="close">&times;</span>
-                <div class="select-option" data-value="">תן לגמיני להחליט</div>
+                <div class="select-option" data-value="default">תן לגמיני להחליט</div>
                 <div class="select-option" data-value="0.5">איטי מאוד (0.5)</div>
                 <div class="select-option" data-value="0.75">איטי (0.75)</div>
                 <div class="select-option" data-value="1">רגיל (1)</div>
@@ -165,10 +161,10 @@
             </div>
         </div>
 
-        <div id="narrationStyleModal" class="select-modal">
+        <div class="select-modal" id="narrationStyleModal">
             <div class="select-modal-content">
                 <span class="close">&times;</span>
-                <div class="select-option" data-value="">תן לגמיני להחליט (מומלץ)</div>
+                <div class="select-option" data-value="default">תן לגמיני להחליט (מומלץ)</div>
                 <div class="select-option" data-value="neutral">ניטרלי</div>
                 <div class="select-option" data-value="happy">שמח</div>
                 <div class="select-option" data-value="sad">עצוב</div>
@@ -177,10 +173,10 @@
             </div>
         </div>
 
-        <div id="voicePitchModal" class="select-modal">
+        <div class="select-modal" id="voicePitchModal">
             <div class="select-modal-content">
                 <span class="close">&times;</span>
-                <div class="select-option" data-value="">תן לגמיני להחליט</div>
+                <div class="select-option" data-value="default">תן לגמיני להחליט</div>
                 <div class="select-option" data-value="-20">נמוך מאוד (-20)</div>
                 <div class="select-option" data-value="-10">נמוך (-10)</div>
                 <div class="select-option" data-value="0">רגיל (0)</div>
@@ -189,55 +185,44 @@
             </div>
         </div>
 
-        <!-- Step 1: Story Idea -->
-        <div id="step1" class="card step-card">
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <div class="card step-card" id="step1">
             <div class="step-header">
-                <div class="step-number">1</div>
+                <span class="step-number">1</span>
                 <h2>רעיון לסיפור</h2>
             </div>
-            <textarea id="storyIdea" placeholder="הכנס כאן רעיון לסיפור, או השאר ריק כדי שגמיני ימציא אחד"></textarea>
-            <button id="generateScript" class="btn btn-primary">
-                <span class="btn-text">צור תסריט</span>
-                <span class="spinner" style="display: none;"></span>
-            </button>
+            <textarea id="storyIdea" placeholder="הכנס רעיון לסיפור או השאר ריק כדי שגמיני יבחר עבורך"></textarea>
+            <button class="btn btn-primary" id="generateScript"><span class="spinner" style="display: none;"></span><span class="btn-text">צור תסריט</span></button>
         </div>
 
-        <!-- Step 2: Script Editing -->
-        <div id="step2" class="card step-card" style="display: none;">
+        <div class="card step-card" id="step2" style="display: none;">
             <div class="step-header">
-                <div class="step-number">2</div>
+                <span class="step-number">2</span>
                 <h2>עריכת התסריט</h2>
             </div>
-            <textarea id="scriptContent" placeholder="התסריט יופיע כאן"></textarea>
-            <p id="scriptStatus" class="status-message"></p>
-            <button id="generateAudio" class="btn btn-primary">
-                <span class="btn-text">צור שמע</span>
-                <span class="spinner" style="display: none;"></span>
-            </button>
+            <p id="scriptStatus" class="status-message" style="display: none;"></p>
+            <textarea id="scriptContent" placeholder="התסריט יופיע כאן לאחר היצירה"></textarea>
+            <div class="audio-controls">
+                <button class="btn btn-primary" id="generateAudio"><span class="spinner" style="display: none;"></span><span class="btn-text">צור שמע</span></button>
+            </div>
         </div>
 
-        <!-- Step 3: Audio Playback -->
-        <div id="step3" class="card step-card" style="display: none;">
+        <div class="card step-card" id="step3" style="display: none;">
             <div class="step-header">
-                <div class="step-number">3</div>
+                <span class="step-number">3</span>
                 <h2>האזנה והורדה</h2>
             </div>
             <div class="audio-player">
                 <audio id="audioPlayer" controls style="display: none;"></audio>
-                <div id="audioPlaceholder" class="audio-placeholder">השמע יופיע כאן לאחר היצירה</div>
+                <div class="audio-placeholder" id="audioPlaceholder">השמע יופיע כאן לאחר היצירה</div>
             </div>
             <div class="audio-controls">
-                <a id="downloadAudio" class="btn btn-secondary" style="display: none;">
-                    הורד קובץ WAV
-                </a>
-                <button id="createNew" class="btn btn-outline">צור סיפור חדש</button>
+                <button class="btn btn-primary" id="downloadAudio" style="display: none;">הורד קובץ WAV</button>
+                <button class="btn btn-outline" id="createNew">צור סיפור חדש</button>
             </div>
-            <p class="note">שים לב: קבצי השמע זמינים רק בזמן הפעילות הנוכחית. הורד אותם כדי לשמור אותם.</p>
+            <p class="warning">שים לב: קבצי השמע זמינים רק בזמן הפעילות הנוכחית. הורד אותם כדי לשמור אותם.</p>
         </div>
-
-        <p id="errorMessage" class="error-message" style="display: none;"></p>
     </div>
-
-    <script src="script.js"></script>
 </body>
 </html>
