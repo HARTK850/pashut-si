@@ -258,7 +258,7 @@ body {
   align-items: flex-start;
 }
 
-input[type="text"],
+textarea#storyIdea,
 input[type="password"],
 textarea {
   width: 100%;
@@ -270,6 +270,13 @@ textarea {
   transition: all 0.3s ease;
   background: #f8f9fa;
   text-align: right;
+  resize: vertical;
+}
+
+textarea#storyIdea {
+  height: 150px; /* גובה ריבועי */
+  width: 150px; /* רוחב ריבועי */
+  overflow-y: auto; /* גלילה אנכית */
 }
 
 input:focus,
@@ -481,6 +488,11 @@ textarea {
     right: 10px;
     font-size: 24px;
   }
+
+  textarea#storyIdea {
+    height: 120px; /* התאמה לגודל מסך קטן */
+    width: 120px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -501,5 +513,10 @@ textarea {
   .modal-content, .select-modal-content {
     max-width: 90%;
     padding: 20px;
+  }
+
+  textarea#storyIdea {
+    height: 100px; /* התאמה נוספת למסך קטן מאוד */
+    width: 100px;
   }
 }
