@@ -343,21 +343,6 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    // פיצול אם הטקסט ארוך מדי (Gemini TTS מגביל ~1000 תווים)
-    const maxLength = 1000;
-    if (narrationText.length > maxLength) {
-      const segments = this.parseScriptSegments(narrationText);
-      let audioBlobs = [];
-      for (let segment of segments) {
-        let segmentAudio = await this.generateSegmentAudio(segment.textToRead, segment.style);
-        audioBlobs.push(segmentAudio);
-      }
-      this.currentAudioBlob = await this.concatAudioBlobs(audioBlobs);
-      this.handleAudioResponse(this.currentAudioBlob);
-      return;
-    }
-
-    // קוד ה-TTS הרגיל
     let narrationPrompt = `Narrate this story dynamically: ${narrationText}.`; // התאם מהמקור
 
     const requestBody = {
@@ -376,10 +361,12 @@ class StoryGenerator {
       },
     };
 
+    console.log("Sending TTS request with body:", JSON.stringify(requestBody));
+
     let response;
     for (let attempt = 0; attempt < 3; attempt++) {
       response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
         {
           method: "POST",
           headers: {
@@ -397,52 +384,37 @@ class StoryGenerator {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("API error response:", errorText);
       throw new Error(errorText);
     }
 
     const data = await response.json();
+    console.log("API response data:", data);
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0] || !data.candidates[0].content.parts[0].inlineData || !data.candidates[0].content.parts[0].inlineData.data) {
+      throw new Error("לא התקבל אודיו מה-API - תגובה ריקה או לא תקינה");
+    }
+
     const audioData = data.candidates[0].content.parts[0].inlineData.data;
+    if (!audioData || audioData.length === 0) {
+      throw new Error("נתוני האודיו ריקים - בדוק את הפרומפט או המכסה");
+    }
+
     const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
     const wavBlob = this.createWavBlob(pcmBytes);
     this.handleAudioResponse(wavBlob);
   }
 
-  // פונקציות נוספות מהקוד המקורי (לא שיניתי אם לא צריך)
-  async generateSegmentAudio(text, style) {
-    // דומה ל-TTS, אבל ל-segment
-    // ... (הוסף לוגיקה)
-    return new Blob(); // placeholder
-  }
-
-  async concatAudioBlobs(blobs) {
-    // השתמש ב-AudioContext כדי לחבר
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // ... (לוגיקה לחיבור blobs)
-    return new Blob(); // placeholder
-  }
-
-  parseScriptSegments(script) {
-    const lines = script.split("\n");
-    const segments = [];
-
-    for (const line of lines) {
-      const match = line.match(/\[([^\]]+)\]:\s*(?:\(\s*([^\)]+)\s*\))?\s*(.+)/);
-      if (match) {
-        const speaker = match[1].trim();
-        const style = match[2] ? match[2].trim() : "";
-        const textToRead = match[3].trim();
-
-        if (!speaker.includes("צליל") && !speaker.includes("מוזיקה") && textToRead) {
-          segments.push({ speaker, style, textToRead });
-        }
-      }
+  handleAudioResponse(audioBlob) {
+    if (audioBlob.size === 0) {
+      console.error("Generated audio blob is empty");
+      this.showError("קובץ השמע שנוצר ריק - בדוק את הקונסולה לשגיאות");
+      return;
     }
 
-    return segments;
-  }
-
-  handleAudioResponse(audioBlob) {
+    console.log("Handling audio response, blob size:", audioBlob.size);
     this.currentAudioBlob = audioBlob;
+
     const audioPlayer = document.getElementById("audioPlayer");
     const audioPlaceholder = document.getElementById("audioPlaceholder");
     const downloadButton = document.getElementById("downloadAudio");
@@ -455,7 +427,11 @@ class StoryGenerator {
   }
 
   downloadAudio() {
-    if (!this.currentAudioBlob) return;
+    if (!this.currentAudioBlob) {
+      this.showError("אין קובץ שמע להורדה");
+      return;
+    }
+
     const url = URL.createObjectURL(this.currentAudioBlob);
     const a = document.createElement("a");
     a.href = url;
@@ -468,7 +444,7 @@ class StoryGenerator {
 
   validateApiKey() {
     if (!this.apiKey) {
-      this.showError("אנא הכנס מפתח API תקין");
+      this.showError("אנא הכנס מפתח API תקין לפני המשך");
       return false;
     }
     return true;
@@ -482,7 +458,10 @@ class StoryGenerator {
 
   showStep(stepNumber) {
     for (let i = 1; i <= 3; i++) {
-      document.getElementById(`step${i}`).style.display = i <= stepNumber ? "block" : "none";
+      const step = document.getElementById(`step${i}`);
+      if (step) {
+        step.style.display = i <= stepNumber ? "block" : "none";
+      }
     }
   }
 
@@ -491,30 +470,44 @@ class StoryGenerator {
     element.textContent = message;
     element.className = `status-message ${type}`;
     element.style.display = "block";
-    if (type === "success") setTimeout(() => element.style.display = "none", 3000);
+
+    if (type === "success") {
+      setTimeout(() => {
+        element.style.display = "none";
+      }, 3000);
+    }
   }
 
   showError(message) {
     const errorElement = document.getElementById("errorMessage");
     errorElement.textContent = message;
     errorElement.style.display = "block";
-    setTimeout(() => errorElement.style.display = "none", 5000);
+
+    setTimeout(() => {
+      errorElement.style.display = "none";
+    }, 5000);
   }
 
   resetForm() {
     document.getElementById("storyIdea").value = "";
     document.getElementById("scriptContent").value = "";
+
     this.speakers = [];
     this.currentScript = "";
+
     const audioPlayer = document.getElementById("audioPlayer");
     const audioPlaceholder = document.getElementById("audioPlaceholder");
     const downloadButton = document.getElementById("downloadAudio");
+
     audioPlayer.style.display = "none";
     audioPlayer.src = "";
     audioPlaceholder.style.display = "block";
     downloadButton.style.display = "none";
+
     this.currentAudioBlob = null;
+
     this.showStep(1);
+
     document.getElementById("errorMessage").style.display = "none";
   }
 
