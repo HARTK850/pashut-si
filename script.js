@@ -282,7 +282,7 @@ class StoryGenerator {
               },
             ],
           }),
-        },
+        } // <<< התיקון: הפסיק המיותר שהיה כאן נמחק
       );
 
       if (!response.ok) {
