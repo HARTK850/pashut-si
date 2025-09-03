@@ -318,17 +318,22 @@ class StoryGenerator {
   }
 
   buildScriptPrompt(storyIdea) {
-    let lengthPrompt = "אורך הסיפור צריך להיות לפחות 5 דקות.";
+    let lengthPrompt = "אורך הסיפור צריך להיות לפחות 10 דקות ויכול להגיע עד 15 דקות, עם דיאלוגים מפורטים ומגוונים.";
     if (this.settings.storyLength && this.settings.storyLength !== "תן לגמיני להחליט") {
-      lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLength} דקות.`;
+      const [min, max] = this.settings.storyLength.split('-').map(Number);
+      lengthPrompt = `אורך הסיפור צריך להיות בין ${min} ל-${max} דקות, עם דיאלוגים מפורטים ומגוונים שמתאימים לאורך זה.`;
+    } else if (this.settings.storyLength && this.settings.storyLength === "other" && this.settings.storyLengthCustom) {
+      lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLengthCustom} דקות, עם דיאלוגים מפורטים ומגוונים שמתאימים לאורך זה.`;
     }
 
-    let prompt = `צור תסריט לסיפור קצר בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
+    let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
 
 הנחיות קריטיות לפורמט הפלט:
- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
- פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.`;
+- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
+- פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
+- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.
+- וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.`;
+
     return prompt;
   }
 
@@ -362,33 +367,31 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    const processedText = narrationText.replace(/\[([^\]]+)\]: \(([^\)]+)\)/g, '$1: ');
+    const processedText = narrationText.replace(/\[([^\]]+)\]: \(([^\)]+)\)/g, '$2 $1: ');
 
-    let narrationPrompt = `Create Text-To-Speech the following conversation in Hebrew:
-${processedText}`;
+    let narrationPrompt = `צור שמע עבור השיחה הבאה בעברית:
+${processedText}
+
+הנחיות:
+- קרא רק את הטקסט של הדיאלוגים, תוך שימוש בטון וברגש המופיעים בהוראות בתוך הסוגריים.
+- וודא שהשמע מכיל קול ברור ולא ריק.`;
 
     const requestBody = {
       contents: [{ parts: [{ text: narrationPrompt }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: {
-          speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
-          pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : undefined,
+          speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : 1.0,
+          pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : 0,
         },
       },
     };
 
-    let speechConfig = requestBody.generationConfig.speechConfig;
-
     if (this.settings.voiceName && this.settings.voiceName !== "תן לגמיני להחליט") {
-      speechConfig.voiceConfig = {
+      requestBody.generationConfig.speechConfig.voiceConfig = {
         prebuiltVoiceConfig: {
-          voiceName: this.settings.voiceName.toLowerCase()
-        }
-      };
-    } else if (this.speakers.length > 1) {
-      speechConfig.multiSpeakerVoiceConfig = {
-        speakerVoiceConfigs: []
+          voiceName: this.settings.voiceName.toLowerCase(),
+        },
       };
     }
 
@@ -407,32 +410,42 @@ ${processedText}`;
         }
       );
 
-      if (response.ok || response.status !== 429) break;
+      if (response.ok) break;
 
-      console.log(`Retry ${attempt + 1} after 60s due to 429`);
-      await new Promise((r) => setTimeout(r, 60000));
+      if (response.status === 429) {
+        console.log(`Retry ${attempt + 1} after 60s due to 429`);
+        await new Promise((r) => setTimeout(r, 60000));
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     }
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("API error response:", errorText);
-      throw new Error(errorText);
+      throw new Error(`שגיאת API: ${errorText}`);
     }
 
     const data = await response.json();
     console.log("API response data:", data);
 
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0] || !data.candidates[0].content.parts[0].inlineData || !data.candidates[0].content.parts[0].inlineData.data) {
-      throw new Error("לא התקבל אודיו מה-API - תגובה ריקה או לא תקינה");
+      throw new Error("לא התקבל אודיו תקין מה-API");
     }
 
     const audioData = data.candidates[0].content.parts[0].inlineData.data;
     if (!audioData || audioData.length === 0) {
-      throw new Error("נתוני האודיו ריקים - בדוק את הפרומפט או המכסה");
+      throw new Error("נתוני האודיו ריקים");
     }
 
     const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
     const wavBlob = this.createWavBlob(pcmBytes);
+
+    // בדיקה נוספת של הקובץ
+    if (wavBlob.size < 44) { // גודל מינימלי של כותרת WAV
+      throw new Error("קובץ השמע שנוצר קטן מדי");
+    }
+
     this.handleAudioResponse(wavBlob);
   }
 
