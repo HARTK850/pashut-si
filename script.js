@@ -103,7 +103,7 @@ class StoryGenerator {
             customInput.addEventListener("input", () => {
               this.settings[field.setting] = customInput.value.trim();
               trigger.textContent = customInput.value.trim() || option.textContent;
-            });
+            }, { once: true });
           } else if (customInput) {
             customInput.style.display = "none";
             customInput.value = "";
@@ -201,7 +201,7 @@ class StoryGenerator {
   saveSettings() {
     const fields = ["storyStyle", "storyLength", "storyModel", "voiceName", "speakingRate", "narrationStyle", "voicePitch"];
     fields.forEach(field => {
-      if (this.settings[field] === undefined || this.settings[field] === "") {
+      if (this.settings[field] === undefined || this.settings[field] === "" || this.settings[field] === "תן לגמיני להחליט") {
         delete this.settings[field];
       }
     });
@@ -319,10 +319,8 @@ class StoryGenerator {
 
   buildScriptPrompt(storyIdea) {
     let lengthPrompt = "אורך הסיפור צריך להיות לפחות 5 דקות.";
-    if (this.settings.storyLength && this.settings.storyLength !== "תן לגמיני להחליט" && this.settings.storyLength !== "other") {
-      lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLength}.`;
-    } else if (this.settings.storyLength && this.settings.storyLength === "other" && this.settings.storyLengthCustom) {
-      lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLengthCustom} דקות.`;
+    if (this.settings.storyLength && this.settings.storyLength !== "תן לגמיני להחליט") {
+      lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLength} דקות.`;
     }
 
     let prompt = `צור תסריט לסיפור קצר בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
@@ -364,31 +362,35 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    let narrationPrompt = `Narrate the following Hebrew script.
-    IMPORTANT INSTRUCTIONS:
-    1. Do NOT read the speaker names inside the square brackets [like this].
-    2. Do NOT read the emotional cues inside the parentheses (like this).
-    3. Use the names and cues ONLY as a guide for the voice, tone, and character.
-    4. Only narrate the dialogue text itself.
+    const processedText = narrationText.replace(/\[([^\]]+)\]: \(([^\)]+)\)/g, '$1: ');
 
-    Here is the script to narrate:
-    ${narrationText}`;
+    let narrationPrompt = `Create Text-To-Speech the following conversation in Hebrew:
+${processedText}`;
 
     const requestBody = {
       contents: [{ parts: [{ text: narrationPrompt }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: this.settings.voiceName && this.settings.voiceName !== "" ? this.settings.voiceName.toLowerCase() : undefined,
-            },
-          },
           speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : undefined,
           pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : undefined,
         },
       },
     };
+
+    let speechConfig = requestBody.generationConfig.speechConfig;
+
+    if (this.settings.voiceName && this.settings.voiceName !== "תן לגמיני להחליט") {
+      speechConfig.voiceConfig = {
+        prebuiltVoiceConfig: {
+          voiceName: this.settings.voiceName.toLowerCase()
+        }
+      };
+    } else if (this.speakers.length > 1) {
+      speechConfig.multiSpeakerVoiceConfig = {
+        speakerVoiceConfigs: []
+      };
+    }
 
     console.log("Sending TTS request with body:", JSON.stringify(requestBody));
 
