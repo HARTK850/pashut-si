@@ -282,7 +282,7 @@ class StoryGenerator {
               },
             ],
           }),
-        } // <<< התיקון: הפסיק המיותר שהיה כאן נמחק
+        }
       );
 
       if (!response.ok) {
@@ -292,14 +292,12 @@ class StoryGenerator {
       const data = await response.json();
       const scriptContent = data.candidates[0].content.parts[0].text;
 
-      // --- FIX #1 START: Clean the script to remove preamble ---
       let processedScript = scriptContent;
       const firstDialogueIndex = processedScript.indexOf('[');
       if (firstDialogueIndex > -1) {
         processedScript = processedScript.substring(firstDialogueIndex);
       }
       processedScript = processedScript.trim();
-      // --- FIX #1 END ---
 
       document.getElementById("scriptContent").value = processedScript;
       this.currentScript = processedScript;
@@ -317,14 +315,12 @@ class StoryGenerator {
   }
 
   buildScriptPrompt(storyIdea) {
-    // --- FIX #3 START: Improved prompt for script generation with Nikud ---
     let prompt = צור תסריט לסיפור קצר בעברית על פי הרעיון הבא: "${storyIdea}".
 
 הנחיות קריטיות לפורמט הפלט:
  ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
  פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
  פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.;
-    // --- FIX #3 END ---
     return prompt;
   }
 
@@ -358,7 +354,6 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    // --- FIX #2 START: Improved prompt for audio generation ---
     let narrationPrompt = Narrate the following Hebrew script.
     IMPORTANT INSTRUCTIONS:
     1. Do NOT read the speaker names inside the square brackets [like this].
@@ -368,7 +363,6 @@ class StoryGenerator {
 
     Here is the script to narrate:
     ${narrationText};
-    // --- FIX #2 END ---
 
     const requestBody = {
       contents: [{ parts: [{ text: narrationPrompt }] }],
@@ -398,7 +392,7 @@ class StoryGenerator {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(requestBody),
-        },
+        }
       );
 
       if (response.ok || response.status !== 429) break;
