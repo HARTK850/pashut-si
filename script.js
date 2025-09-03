@@ -129,7 +129,7 @@ class StoryGenerator {
 
     try {
       const response = await fetch(
-        https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey},
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -172,7 +172,7 @@ class StoryGenerator {
       const elem = document.getElementById(field.id);
       const customInput = field.customInput ? document.getElementById(field.customInput) : null;
       if (elem) {
-        const options = document.querySelectorAll(#${field.id.replace("Trigger", "Modal")} .select-option);
+        const options = document.querySelectorAll(`#${field.id.replace("Trigger", "Modal")} .select-option`);
         let selectedText = field.default;
         let isCustom = false;
 
@@ -213,7 +213,7 @@ class StoryGenerator {
     this.history.forEach((story, index) => {
       const item = document.createElement("div");
       item.className = "history-item";
-      item.innerHTML = <p>${story.idea.substring(0, 100)}...</p>;
+      item.innerHTML = `<p>${story.idea.substring(0, 100)}...</p>`;
       item.addEventListener("click", () => this.loadStory(index));
       historyList.appendChild(item);
     });
@@ -265,7 +265,7 @@ class StoryGenerator {
       const prompt = this.buildScriptPrompt(storyIdea);
 
       const response = await fetch(
-        https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey},
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`,
         {
           method: "POST",
           headers: {
@@ -286,7 +286,7 @@ class StoryGenerator {
       );
 
       if (!response.ok) {
-        throw new Error(HTTP error! status: ${response.status});
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -315,12 +315,12 @@ class StoryGenerator {
   }
 
   buildScriptPrompt(storyIdea) {
-    let prompt = צור תסריט לסיפור קצר בעברית על פי הרעיון הבא: "${storyIdea}".
+    let prompt = `צור תסריט לסיפור קצר בעברית על פי הרעיון הבא: "${storyIdea}".
 
 הנחיות קריטיות לפורמט הפלט:
  ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
  פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.;
+ פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.`;
     return prompt;
   }
 
@@ -354,7 +354,7 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    let narrationPrompt = Narrate the following Hebrew script.
+    let narrationPrompt = `Narrate the following Hebrew script.
     IMPORTANT INSTRUCTIONS:
     1. Do NOT read the speaker names inside the square brackets [like this].
     2. Do NOT read the emotional cues inside the parentheses (like this).
@@ -362,7 +362,7 @@ class StoryGenerator {
     4. Only narrate the dialogue text itself.
 
     Here is the script to narrate:
-    ${narrationText};
+    ${narrationText}`;
 
     const requestBody = {
       contents: [{ parts: [{ text: narrationPrompt }] }],
@@ -385,7 +385,7 @@ class StoryGenerator {
     let response;
     for (let attempt = 0; attempt < 3; attempt++) {
       response = await fetch(
-        https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey},
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
         {
           method: "POST",
           headers: {
@@ -397,7 +397,7 @@ class StoryGenerator {
 
       if (response.ok || response.status !== 429) break;
 
-      console.log(Retry ${attempt + 1} after 60s due to 429);
+      console.log(`Retry ${attempt + 1} after 60s due to 429`);
       await new Promise((r) => setTimeout(r, 60000));
     }
 
@@ -454,7 +454,7 @@ class StoryGenerator {
     const url = URL.createObjectURL(this.currentAudioBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = story_${Date.now()}.wav;
+    a.download = `story_${Date.now()}.wav`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -477,7 +477,7 @@ class StoryGenerator {
 
   showStep(stepNumber) {
     for (let i = 1; i <= 3; i++) {
-      const step = document.getElementById(step${i});
+      const step = document.getElementById(`step${i}`);
       if (step) {
         step.style.display = i <= stepNumber ? "block" : "none";
       }
@@ -487,7 +487,7 @@ class StoryGenerator {
   showStatus(elementId, message, type) {
     const element = document.getElementById(elementId);
     element.textContent = message;
-    element.className = status-message ${type};
+    element.className = `status-message ${type}`;
     element.style.display = "block";
 
     if (type === "success") {
@@ -623,7 +623,7 @@ class StoryGenerator {
 
   setupSpeakersList() {
     if (this.speakers.length > 0) {
-      this.showStatus("scriptStatus", נמצאו ${this.speakers.length} דוברים: ${this.speakers.join(", ")}, "success");
+      this.showStatus("scriptStatus", `נמצאו ${this.speakers.length} דוברים: ${this.speakers.join(", ")}`, "success");
     } else {
       this.showStatus("scriptStatus", "לא נמצאו דוברים בתסריט", "error");
     }
