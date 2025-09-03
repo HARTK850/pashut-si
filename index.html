@@ -38,10 +38,12 @@
                     <div class="setting-group">
                         <label>סגנון סיפור:</label>
                         <div id="storyStyleTrigger" class="select-trigger">תן לגמיני להחליט</div>
+                        <input type="text" class="custom-input" id="storyStyleCustom" style="display: none;">
                     </div>
                     <div class="setting-group">
                         <label>אורך סיפור (דקות):</label>
                         <div id="storyLengthTrigger" class="select-trigger">תן לגמיני להחליט</div>
+                        <input type="text" class="custom-input" id="storyLengthCustom" style="display: none;">
                     </div>
                     <div class="setting-group">
                         <label>מודל כתיבה:</label>
@@ -84,6 +86,16 @@
             <div class="select-modal-content">
                 <span class="close">&times;</span>
                 <h2>תן לגמיני להחליט</h2>
+                <div class="select-option" data-value="drama">דרמה</div>
+                <div class="select-option" data-value="comedy">קומדיה</div>
+                <div class="select-option" data-value="adventure">הרפתקאות</div>
+                <div class="select-option" data-value="mystery">מסתורין</div>
+                <div class="select-option" data-value="scifi">מדע בדיוני</div>
+                <div class="select-option" data-value="fantasy">פנטזיה</div>
+                <div class="select-option" data-value="historical">היסטורי</div>
+                <div class="select-option" data-value="children">ילדים</div>
+                <div class="select-option" data-value="motivation">מוטיבציה</div>
+                <div class="select-option" data-value="horror">אימה</div>
                 <div class="select-option" data-value="other">אחר</div>
             </div>
         </div>
@@ -184,22 +196,6 @@
             </div>
         </div>
 
-        <div class="modal select-modal" id="storyStyleCustomModal">
-            <div class="select-modal-content">
-                <span class="close">&times;</span>
-                <h2>אחר</h2>
-                <input type="text" class="custom-input" id="storyStyleCustom">
-            </div>
-        </div>
-
-        <div class="modal select-modal" id="storyLengthCustomModal">
-            <div class="select-modal-content">
-                <span class="close">&times;</span>
-                <h2>אחר</h2>
-                <input type="text" class="custom-input" id="storyLengthCustom">
-            </div>
-        </div>
-
         <div class="card step-card" id="step1">
             <div class="step-header">
                 <div class="step-number">1</div>
@@ -217,7 +213,7 @@
                 <h2>עריכת התסריט</h2>
             </div>
             <div class="input-group">
-                <textarea id="scriptContent" placeholder="התסריט יופיע כאן לאחר היצירה..." readonly></textarea>
+                <textarea id="scriptContent" placeholder="התסריט יופיע כאן לאחר היצירה..."></textarea>
                 <div id="scriptStatus" class="status-message"></div>
                 <button class="btn btn-primary" id="generateAudio"><span class="btn-text">צור שמע</span><span class="spinner" style="display: none;"></span></button>
             </div>
@@ -232,11 +228,11 @@
                 <div id="audioPlaceholder" class="audio-placeholder">השמע יופיע כאן לאחר היצירה</div>
                 <audio id="audioPlayer" controls style="display: none;"></audio>
                 <div class="audio-controls">
-                    <button class="btn btn-primary" id="downloadAudio">הורד קובץ WAV</button>
+                    <button class="btn btn-primary" id="downloadAudio" style="display: none;">הורד קובץ WAV</button>
                     <button class="btn btn-secondary" id="createNew">צור סיפור חדש</button>
                 </div>
-                <div class="warning">שים לב: קבצי השמע זמינים רק בזמן הפעילות הנוכחית. הורד אותם כדי לשמור אותם.</div>
             </div>
+            <div class="warning">שים לב: קבצי השמע זמינים רק בזמן הפעילות הנוכחית. הורד אותם כדי לשמור אותם.</div>
         </div>
 
         <div id="errorMessage" class="error-message" style="display: none;"></div>
