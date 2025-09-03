@@ -4,7 +4,7 @@ class StoryGenerator {
     this.currentAudioBlob = null;
     this.currentScript = "";
     this.speakers = [];
-    this.settings = JSON.parse(localStorage.getItem("story_settings")) || {};
+    this.settings = JSON.parse(localStorage.getItem("story_settings")) || { storyModel: "gemini-2.5-flash" };
     this.history = JSON.parse(localStorage.getItem("story_history")) || [];
     this.currentStoryId = null;
     this.init();
@@ -73,6 +73,7 @@ class StoryGenerator {
     const selectFields = [
       { trigger: "storyStyleTrigger", modal: "storyStyleModal", setting: "storyStyle", customInput: "storyStyleCustom" },
       { trigger: "storyLengthTrigger", modal: "storyLengthModal", setting: "storyLength", customInput: "storyLengthCustom" },
+      { trigger: "storyModelTrigger", modal: "storyModelModal", setting: "storyModel" },
       { trigger: "voiceNameTrigger", modal: "voiceNameModal", setting: "voiceName" },
       { trigger: "speakingRateTrigger", modal: "speakingRateModal", setting: "speakingRate" },
       { trigger: "narrationStyleTrigger", modal: "narrationStyleModal", setting: "narrationStyle" },
@@ -162,6 +163,7 @@ class StoryGenerator {
     const selectFields = [
       { id: "storyStyleTrigger", setting: "storyStyle", default: "תן לגמיני להחליט", customInput: "storyStyleCustom" },
       { id: "storyLengthTrigger", setting: "storyLength", default: "תן לגמיני להחליט", customInput: "storyLengthCustom" },
+      { id: "storyModelTrigger", setting: "storyModel", default: "גמיני 2.5 פלאש" },
       { id: "voiceNameTrigger", setting: "voiceName", default: "תן לגמיני להחליט" },
       { id: "speakingRateTrigger", setting: "speakingRate", default: "תן לגמיני להחליט" },
       { id: "narrationStyleTrigger", setting: "narrationStyle", default: "תן לגמיני להחליט (מומלץ)" },
@@ -197,7 +199,7 @@ class StoryGenerator {
   }
 
   saveSettings() {
-    const fields = ["storyStyle", "storyLength", "voiceName", "speakingRate", "narrationStyle", "voicePitch"];
+    const fields = ["storyStyle", "storyLength", "storyModel", "voiceName", "speakingRate", "narrationStyle", "voicePitch"];
     fields.forEach(field => {
       if (this.settings[field] === undefined || this.settings[field] === "") {
         delete this.settings[field];
@@ -264,8 +266,9 @@ class StoryGenerator {
       const storyIdea = document.getElementById("storyIdea").value.trim();
       const prompt = this.buildScriptPrompt(storyIdea);
 
+      const model = this.settings.storyModel || "gemini-2.5-flash";
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`,
         {
           method: "POST",
           headers: {
@@ -315,7 +318,14 @@ class StoryGenerator {
   }
 
   buildScriptPrompt(storyIdea) {
-    let prompt = `צור תסריט לסיפור קצר בעברית על פי הרעיון הבא: "${storyIdea}".
+    let lengthPrompt = "אורך הסיפור צריך להיות לפחות 5 דקות.";
+    if (this.settings.storyLength && this.settings.storyLength !== "תן לגמיני להחליט" && this.settings.storyLength !== "other") {
+      lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLength}.`;
+    } else if (this.settings.storyLength && this.settings.storyLength === "other" && this.settings.storyLengthCustom) {
+      lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLengthCustom} דקות.`;
+    }
+
+    let prompt = `צור תסריט לסיפור קצר בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
 
 הנחיות קריטיות לפורמט הפלט:
  ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
