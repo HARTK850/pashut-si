@@ -383,17 +383,10 @@ ${processedText}
         speechConfig: {
           speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : 1.0,
           pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : 0,
+          voiceName: this.settings.voiceName || "en-US-Wavenet-D", // ערך ברירת מחדל תקף
         },
       },
     };
-
-    if (this.settings.voiceName && this.settings.voiceName !== "תן לגמיני להחליט") {
-      requestBody.generationConfig.speechConfig.voiceConfig = {
-        prebuiltVoiceConfig: {
-          voiceName: this.settings.voiceName.toLowerCase(),
-        },
-      };
-    }
 
     console.log("Sending TTS request with body:", JSON.stringify(requestBody));
 
@@ -422,7 +415,7 @@ ${processedText}
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("API error response:", errorText);
+      console.error("Full error response:", errorText); // לוג מלא של השגיאה
       throw new Error(`שגיאת API: ${errorText}`);
     }
 
