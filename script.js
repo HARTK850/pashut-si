@@ -367,38 +367,28 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    // Parse the script to create SSML for better tone control
-    let ssmlParts = [];
-    const lines = narrationText.split('\n');
-    for (let line of lines) {
-      line = line.trim();
-      if (!line) continue;
-      const match = line.match(/\[([^\]]+)\]: \(([^\)]+)\) (.*)/);
-      if (match) {
-        const speaker = match[1];
-        const tone = match[2];
-        const text = match[3];
-        const prosodyAttrs = this.getProsodyFromTone(tone);
-        ssmlParts.push(`<prosody ${prosodyAttrs}>${speaker}: ${text}</prosody>`);
-      } else {
-        ssmlParts.push(line);
-      }
-    }
-    const ssml = `<speak>${ssmlParts.join(' ')}</speak>`;
+    const processedText = narrationText.replace(/\[([^\]]+)\]: \(([^\)]+)\)/g, '$2 $1: ');
+
+    let narrationPrompt = `צור שמע עבור השיחה הבאה בעברית:
+${processedText}
+
+הנחיות:
+- קרא רק את הטקסט של הדיאלוגים, תוך שימוש בטון וברגש המופיעים בהוראות בתוך הסוגריים.
+- וודא שהשמע מכיל קול ברור ולא ריק.`;
 
     const requestBody = {
-      input: {
-        ssml: ssml
-      },
-      voice: {
-        languageCode: "he-IL",
-        name: this.settings.voiceName || "he-IL-Wavenet-A"  // Default to a Hebrew voice; adjust mapping if needed
-      },
-      audioConfig: {
-        audioEncoding: "LINEAR16",
-        speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : 1.0,
-        pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : 0,
-        sampleRateHertz: 24000
+      "contents": [{ "parts": [{ "text": narrationPrompt }] }],
+      "generationConfig": {
+        "responseModalities": ["AUDIO"],
+        "speechConfig": {
+          "speakingRate": this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : 1.0,
+          "pitch": this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : 0,
+          "voiceConfig": {
+            "prebuiltVoiceConfig": {
+              "voiceName": this.settings.voiceName || "Kore"
+            }
+          }
+        }
       }
     };
 
@@ -407,7 +397,7 @@ class StoryGenerator {
     let response;
     for (let attempt = 0; attempt < 3; attempt++) {
       response = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
         {
           method: "POST",
           headers: {
@@ -436,11 +426,11 @@ class StoryGenerator {
     const data = await response.json();
     console.log("API response data:", data);
 
-    if (!data.audioContent) {
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0] || !data.candidates[0].content.parts[0].inlineData || !data.candidates[0].content.parts[0].inlineData.data) {
       throw new Error("לא התקבל אודיו תקין מה-API");
     }
 
-    const audioData = data.audioContent;
+    const audioData = data.candidates[0].content.parts[0].inlineData.data;
     if (!audioData || audioData.length === 0) {
       throw new Error("נתוני האודיו ריקים");
     }
@@ -454,23 +444,6 @@ class StoryGenerator {
     }
 
     this.handleAudioResponse(wavBlob);
-  }
-
-  getProsodyFromTone(tone) {
-    tone = tone.trim().toLowerCase();
-    if (tone.includes("מתרגש") || tone.includes("שמח")) {
-      return 'rate="1.2" pitch="5" volume="medium"';
-    } else if (tone.includes("עצוב")) {
-      return 'rate="0.8" pitch="-5" volume="soft"';
-    } else if (tone.includes("תקיף") || tone.includes("מתוח")) {
-      return 'rate="1.0" pitch="-2" volume="loud"';
-    } else if (tone.includes("רגוע") || tone.includes("נינוח")) {
-      return 'rate="0.9" pitch="0" volume="medium"';
-    } else if (tone.includes("אימה") || tone.includes("מפחיד")) {
-      return 'rate="0.7" pitch="-10" volume="soft"';
-    }
-    // Add more mappings as needed
-    return 'rate="1.0" pitch="0" volume="medium"'; // Default
   }
 
   handleAudioResponse(audioBlob) {
