@@ -342,7 +342,7 @@ class StoryGenerator {
 
     const button = document.getElementById("generateAudio");
     const spinner = button.querySelector(".spinner");
-    const btnText = button.querySelector(".btn-text");
+    const btnText = document.querySelector(".btn-text");
 
     this.setLoading(button, spinner, btnText, true);
 
@@ -384,9 +384,7 @@ class StoryGenerator {
             prebuiltVoiceConfig: {
               voiceName: this.settings.voiceName || "kore"
             }
-          },
-          speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : 1.0,
-          pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : 0
+          }
         }
       }
     };
