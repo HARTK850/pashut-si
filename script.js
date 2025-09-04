@@ -329,7 +329,7 @@ class StoryGenerator {
     let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
 
 הנחיות קריטיות לפורמט הפלט:
-- !!!!!!!!!!!!!!!!!!!!!!!!!!ניקוד מלא וחובה!!!!!!!!!: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא!!!!!!!!!!!!!!!!!!!. זהו תנאי הכרחי!!!!!!!!!!!!!!!!!!!!!. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
+- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
 - פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
 - פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.
 - וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.`;
@@ -367,11 +367,31 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    // Process the script to extract tone instructions and clean text
-    const processedText = narrationText.replace(/\[([^\]]+)\]: \(([^\)]+)\)/g, '$2 $1: ');
+    // Split the script into lines and process each line
+    const lines = narrationText.split('\n').filter(line => line.trim());
+    let processedText = '';
+    const toneInstructions = [];
+
+    // Regex to match the dialogue format: [Character]: (Tone) Text
+    const dialogueRegex = /\[([^\]]+)\]: \(([^\)]+)\) (.+)/;
+
+    for (const line of lines) {
+      const match = line.match(dialogueRegex);
+      if (match) {
+        const character = match[1].trim();
+        const tone = match[2].trim();
+        const dialogue = match[3].trim();
+        // Add tone instruction and dialogue separately
+        toneInstructions.push(`Speak the following line for ${character} in a ${tone} tone: ${dialogue}`);
+        processedText += `${dialogue}\n`;
+      } else {
+        // Handle non-dialogue lines (e.g., stage directions) if any
+        processedText += `${line}\n`;
+      }
+    }
 
     // Create narration prompt with tone instructions
-    const narrationPrompt = `TTS the following conversation in Hebrew, using the tone indicated in parentheses for each line without reading the tone instructions aloud. Understand the style from the parentheses and apply it to the character's text until the next character or style: ${processedText}`;
+    const narrationPrompt = `TTS the following conversation in Hebrew. Use the tone instructions provided to determine the speaking style for each line, but do not read the tone instructions or character names aloud. Apply the specified tone for each line until the next line or tone change. Ensure the text is spoken exactly as provided, preserving all Hebrew vocalization (niqqud):\n\nTone Instructions:\n${toneInstructions.join('\n')}\n\nText to speak:\n${processedText}`;
 
     const requestBody = {
       contents: [{
