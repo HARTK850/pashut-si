@@ -367,45 +367,44 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
+    // Process the script to extract tone instructions and clean text
     const processedText = narrationText.replace(/\[([^\]]+)\]: \(([^\)]+)\)/g, '$2 $1: ');
 
-    let narrationPrompt = `צור שמע עבור השיחה הבאה בעברית:
-${processedText}
-
-הנחיות:
-- קרא רק את הטקסט של הדיאלוגים, תוך שימוש בטון וברגש המופיעים בהוראות בתוך הסוגריים.
-- וודא שהשמע מכיל קול ברור ולא ריק.`;
+    // Create narration prompt with tone instructions
+    const narrationPrompt = `TTS the following conversation in Hebrew with tones as indicated: ${processedText}`;
 
     const requestBody = {
-      "contents": [{ "parts": [{ "text": narrationPrompt }] }],
-      "generationConfig": {
-        "responseModalities": ["AUDIO"],
-        "speechConfig": {
-          "speakingRate": this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : 1.0,
-          "pitch": this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : 0,
-          "voiceConfig": {
-            "prebuiltVoiceConfig": {
-              "voiceName": this.settings.voiceName || "Kore"
+      contents: [{
+        parts: [{ text: narrationPrompt }]
+      }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: this.settings.voiceName || "kore"
             }
-          }
+          },
+          speakingRate: this.settings.speakingRate ? parseFloat(this.settings.speakingRate) : 1.0,
+          pitch: this.settings.voicePitch ? parseFloat(this.settings.voicePitch) : 0
         }
       }
     };
 
     console.log("Sending TTS request with body:", JSON.stringify(requestBody));
 
+    const model = "gemini-2.5-flash-preview-tts";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
+
     let response;
     for (let attempt = 0; attempt < 3; attempt++) {
-      response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${this.apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
 
       if (response.ok) break;
 
@@ -413,7 +412,9 @@ ${processedText}
         console.log(`Retry ${attempt + 1} after 60s due to 429`);
         await new Promise((r) => setTimeout(r, 60000));
       } else {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Full error response:", errorText);
+        throw new Error(`שגיאת API: ${errorText}`);
       }
     }
 
@@ -438,8 +439,7 @@ ${processedText}
     const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
     const wavBlob = this.createWavBlob(pcmBytes);
 
-    // בדיקה נוספת של הקובץ
-    if (wavBlob.size < 44) { // גודל מינימלי של כותרת WAV
+    if (wavBlob.size < 44) {
       throw new Error("קובץ השמע שנוצר קטן מדי");
     }
 
@@ -520,12 +520,13 @@ ${processedText}
   }
 
   showError(message) {
-    const errorElement = document.getElementById("errorMessage");
-    errorElement.textContent = message;
-    errorElement.style.display = "block";
+    const element = document.getElementById("errorMessage");
+    element.textContent = message;
+    element.className = "status-message error";
+    element.style.display = "block";
 
     setTimeout(() => {
-      errorElement.style.display = "none";
+      element.style.display = "none";
     }, 5000);
   }
 
