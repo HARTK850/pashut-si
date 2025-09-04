@@ -329,7 +329,7 @@ class StoryGenerator {
     let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
 
 הנחיות קריטיות לפורמט הפלט:
-- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
+- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
 - פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
 - פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.
 - וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.`;
@@ -342,7 +342,7 @@ class StoryGenerator {
 
     const button = document.getElementById("generateAudio");
     const spinner = button.querySelector(".spinner");
-    const btnText = document.querySelector(".btn-text");
+    const btnText = button.querySelector(".btn-text");
 
     this.setLoading(button, spinner, btnText, true);
 
@@ -371,7 +371,7 @@ class StoryGenerator {
     const processedText = narrationText.replace(/\[([^\]]+)\]: \(([^\)]+)\)/g, '$2 $1: ');
 
     // Create narration prompt with tone instructions
-    const narrationPrompt = `TTS the following conversation in Hebrew with tones as indicated: ${processedText}`;
+    const narrationPrompt = `TTS the following conversation in Hebrew, using the tone indicated in parentheses for each line without reading the tone instructions aloud. Understand the style from the parentheses and apply it to the character's text until the next character or style: ${processedText}`;
 
     const requestBody = {
       contents: [{
