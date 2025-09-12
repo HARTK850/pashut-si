@@ -301,12 +301,23 @@ textarea {
   margin: 20px 0;
 }
 
+.setting-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .setting-group label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   font-weight: 500;
   color: #2c3e50;
   text-align: right;
+  flex: 1;
+}
+
+.setting-group input[type="checkbox"] {
+  margin: 0;
 }
 
 /* Buttons */
@@ -454,6 +465,11 @@ textarea {
 
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .setting-group {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .input-group {
