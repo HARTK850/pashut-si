@@ -7,6 +7,8 @@ class StoryGenerator {
     this.settings = JSON.parse(localStorage.getItem("story_settings")) || { storyModel: "gemini-2.5-flash" };
     this.history = JSON.parse(localStorage.getItem("story_history")) || [];
     this.currentStoryId = null;
+    this.currentEpisode = 1;
+    this.seriesScripts = [];
     this.init();
   }
 
@@ -16,6 +18,7 @@ class StoryGenerator {
     this.showApiKeyModalIfNeeded();
     this.loadSettings();
     this.setupSelectModals();
+    this.setupSeriesOptions();
   }
 
   bindEvents() {
@@ -28,10 +31,12 @@ class StoryGenerator {
     // Story generation
     document.getElementById("generateScript").addEventListener("click", () => this.generateScript());
     document.getElementById("generateAudio").addEventListener("click", () => this.generateAudio());
+    document.getElementById("generateNextEpisode").addEventListener("click", () => this.generateNextEpisode());
 
     // Audio controls
     document.getElementById("downloadAudio").addEventListener("click", () => this.downloadAudio());
     document.getElementById("createNew").addEventListener("click", () => this.resetForm());
+    document.getElementById("continueStory").addEventListener("click", () => this.showContinueStorySection());
 
     // Modals
     this.setupModals();
@@ -41,7 +46,6 @@ class StoryGenerator {
   }
 
   setupModals() {
-    // Close buttons
     const modals = document.querySelectorAll(".modal, .select-modal");
     modals.forEach(modal => {
       const close = modal.querySelector(".close");
@@ -52,18 +56,15 @@ class StoryGenerator {
       }
     });
 
-    // Settings button
     document.getElementById("settingsBtn").addEventListener("click", () => {
       document.getElementById("settingsModal").style.display = "flex";
     });
 
-    // History button
     document.getElementById("historyBtn").addEventListener("click", () => {
       this.loadHistory();
       document.getElementById("historyModal").style.display = "flex";
     });
 
-    // API Key button
     document.getElementById("apiKeyBtn").addEventListener("click", () => {
       document.getElementById("apiKeyModal").style.display = "flex";
     });
@@ -110,6 +111,17 @@ class StoryGenerator {
           }
         });
       });
+    });
+  }
+
+  setupSeriesOptions() {
+    const seriesCheckbox = document.getElementById("seriesStory");
+    const episodeCountGroup = document.getElementById("episodeCountGroup");
+    seriesCheckbox.addEventListener("change", () => {
+      episodeCountGroup.style.display = seriesCheckbox.checked ? "block" : "none";
+      if (!seriesCheckbox.checked) {
+        this.settings.episodeCount = undefined;
+      }
     });
   }
 
@@ -196,6 +208,22 @@ class StoryGenerator {
         }
       }
     });
+
+    // Load series settings
+    const seriesCheckbox = document.getElementById("seriesStory");
+    const episodeCountGroup = document.getElementById("episodeCountGroup");
+    const episodeCountInput = document.getElementById("episodeCount");
+    const addIntroCheckbox = document.getElementById("addIntro");
+
+    if (this.settings.seriesStory) {
+      seriesCheckbox.checked = true;
+      episodeCountGroup.style.display = "block";
+      episodeCountInput.value = this.settings.episodeCount || "";
+    }
+
+    if (this.settings.addIntro) {
+      addIntroCheckbox.checked = true;
+    }
   }
 
   saveSettings() {
@@ -205,6 +233,19 @@ class StoryGenerator {
         delete this.settings[field];
       }
     });
+
+    const seriesCheckbox = document.getElementById("seriesStory");
+    this.settings.seriesStory = seriesCheckbox.checked;
+    if (seriesCheckbox.checked) {
+      const episodeCount = document.getElementById("episodeCount").value;
+      this.settings.episodeCount = episodeCount ? parseInt(episodeCount) : undefined;
+    } else {
+      delete this.settings.episodeCount;
+    }
+
+    const addIntroCheckbox = document.getElementById("addIntro");
+    this.settings.addIntro = addIntroCheckbox.checked;
+
     localStorage.setItem("story_settings", JSON.stringify(this.settings));
     document.getElementById("settingsModal").style.display = "none";
   }
@@ -226,6 +267,8 @@ class StoryGenerator {
     document.getElementById("storyIdea").value = story.idea;
     document.getElementById("scriptContent").value = story.script;
     this.currentScript = story.script;
+    this.seriesScripts = story.seriesScripts || [story.script];
+    this.currentEpisode = story.currentEpisode || 1;
     this.extractSpeakersFromScript(story.script);
     this.setupSpeakersList();
     this.showStep(2);
@@ -233,14 +276,21 @@ class StoryGenerator {
     document.getElementById("audioPlayer").style.display = "none";
     document.getElementById("audioPlaceholder").style.display = "block";
     document.getElementById("downloadAudio").style.display = "none";
+    document.getElementById("continueStory").style.display = this.settings.seriesStory ? "inline-flex" : "none";
     document.getElementById("historyModal").style.display = "none";
+    document.getElementById("continueStorySection").style.display = "none";
   }
 
   saveToHistory() {
     const idea = document.getElementById("storyIdea").value.trim();
     const script = this.currentScript;
     if (idea && script) {
-      this.history.unshift({ idea, script });
+      this.history.unshift({
+        idea,
+        script,
+        seriesScripts: this.seriesScripts,
+        currentEpisode: this.currentEpisode
+      });
       if (this.history.length > 10) {
         this.history.pop();
       }
@@ -293,7 +343,7 @@ class StoryGenerator {
       }
 
       const data = await response.json();
-      const scriptContent = data.candidates[0].content.parts[0].text;
+      let scriptContent = data.candidates[0].content.parts[0].text;
 
       let processedScript = scriptContent;
       const firstDialogueIndex = processedScript.indexOf('[');
@@ -304,14 +354,85 @@ class StoryGenerator {
 
       document.getElementById("scriptContent").value = processedScript;
       this.currentScript = processedScript;
+      this.seriesScripts = this.settings.seriesStory ? [processedScript] : [];
+      this.currentEpisode = 1;
 
       this.extractSpeakersFromScript(processedScript);
       this.setupSpeakersList();
       this.showStep(2);
       this.saveToHistory();
+      document.getElementById("continueStory").style.display = this.settings.seriesStory ? "inline-flex" : "none";
     } catch (error) {
       console.error("Error generating script:", error);
       this.showError("שגיאה ביצירת התסריט: " + error.message);
+    } finally {
+      this.setLoading(button, spinner, btnText, false);
+    }
+  }
+
+  async generateNextEpisode() {
+    if (!this.validateApiKey()) return;
+
+    const button = document.getElementById("generateNextEpisode");
+    const spinner = button.querySelector(".spinner");
+    const btnText = button.querySelector(".btn-text");
+
+    this.setLoading(button, spinner, btnText, true);
+
+    try {
+      const storyNotes = document.getElementById("storyNotes").value.trim();
+      const prompt = this.buildNextEpisodePrompt(storyNotes);
+
+      const model = this.settings.storyModel || "gemini-2.5-flash";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      let scriptContent = data.candidates[0].content.parts[0].text;
+
+      let processedScript = scriptContent;
+      const firstDialogueIndex = processedScript.indexOf('[');
+      if (firstDialogueIndex > -1) {
+        processedScript = processedScript.substring(firstDialogueIndex);
+      }
+      processedScript = processedScript.trim();
+
+      document.getElementById("scriptContent").value = processedScript;
+      this.currentScript = processedScript;
+      this.seriesScripts.push(processedScript);
+      this.currentEpisode++;
+
+      this.extractSpeakersFromScript(processedScript);
+      this.setupSpeakersList();
+      this.showStep(2);
+      this.saveToHistory();
+      document.getElementById("continueStorySection").style.display = "none";
+      document.getElementById("continueStory").style.display = this.settings.seriesStory && (!this.settings.episodeCount || this.currentEpisode <= this.settings.episodeCount) ? "inline-flex" : "none";
+    } catch (error) {
+      console.error("Error generating next episode:", error);
+      this.showError("שגיאה ביצירת פרק הבא: " + error.message);
     } finally {
       this.setLoading(button, spinner, btnText, false);
     }
@@ -326,12 +447,51 @@ class StoryGenerator {
       lengthPrompt = `אורך הסיפור צריך להיות ${this.settings.storyLengthCustom} דקות, עם דיאלוגים מפורטים ומגוונים שמתאימים לאורך זה.`;
     }
 
-    let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
+    let seriesPrompt = "";
+    if (this.settings.seriesStory) {
+      const episodeCount = this.settings.episodeCount || "בלתי מוגבל";
+      seriesPrompt = `הסיפור הוא חלק מסדרה בת ${episodeCount} פרקים. צור תסריט לפרק הראשון שמבסס את העלילה ומשאיר פתח להמשך.`;
+    }
+
+    let introPrompt = "";
+    if (this.settings.addIntro) {
+      const storyStyle = this.settings.storyStyle || "מגוון";
+      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - סיפור מתח, האזנה ערבה!").`;
+    }
+
+    let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt} ${seriesPrompt} ${introPrompt}
 
 הנחיות קריטיות לפורמט הפלט:
 - ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
 - פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
-- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '['.
+- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט, כולל הפתיח אם נדרש. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '[' או לפני הפתיח.
+- וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.`;
+
+    return prompt;
+  }
+
+  buildNextEpisodePrompt(storyNotes) {
+    let lengthPrompt = "אורך הפרק צריך להיות לפחות 10 דקות ויכול להגיע עד 15 דקות, עם דיאלוגים מפורטים ומגוונים.";
+    if (this.settings.storyLength && this.settings.storyLength !== "תן לגמיני להחליט") {
+      const [min, max] = this.settings.storyLength.split('-').map(Number);
+      lengthPrompt = `אורך הפרק צריך להיות בין ${min} ל-${max} דקות, עם דיאלוגים מפורטים ומגוונים שמתאימים לאורך זה.`;
+    } else if (this.settings.storyLength && this.settings.storyLength === "other" && this.settings.storyLengthCustom) {
+      lengthPrompt = `אורך הפרק צריך להיות ${this.settings.storyLengthCustom} דקות, עם דיאלוגים מפורטים ומגוונים שמתאימים לאורך זה.`;
+    }
+
+    let introPrompt = "";
+    if (this.settings.addIntro) {
+      const storyStyle = this.settings.storyStyle || "מגוון";
+      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), מספר הפרק, וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - פרק 2, סיפור מתח, האזנה ערבה!").`;
+    }
+
+    const previousScripts = this.seriesScripts.join("\n\n---\n\n");
+    let prompt = `צור תסריט מפורט ומלא בעברית לפרק ${this.currentEpisode + 1} של סדרת סיפורים, בהתבסס על הפרקים הקודמים הבאים:\n\n${previousScripts}\n\nהערות או הנחיות לפרק הבא: "${storyNotes}". ${lengthPrompt} ${introPrompt}
+
+הנחיות קריטיות לפורמט הפלט:
+- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
+- פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
+- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט, כולל הפתיח אם נדרש. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '[' או לפני הפתיח.
 - וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.`;
 
     return prompt;
@@ -349,6 +509,7 @@ class StoryGenerator {
     try {
       await this.generateAudioWithGeminiTTS();
       this.showStep(3);
+      document.getElementById("continueStory").style.display = this.settings.seriesStory && (!this.settings.episodeCount || this.currentEpisode < this.settings.episodeCount) ? "inline-flex" : "none";
     } catch (error) {
       console.error("Error generating audio:", error);
       if (error.message.includes("429")) {
@@ -367,12 +528,10 @@ class StoryGenerator {
       throw new Error("אין תסריט להקראה");
     }
 
-    // Split the script into lines and process each line
     const lines = narrationText.split('\n').filter(line => line.trim());
     let processedText = '';
     const toneInstructions = [];
 
-    // Regex to match the dialogue format: [Character]: (Tone) Text
     const dialogueRegex = /\[([^\]]+)\]: \(([^\)]+)\) (.+)/;
 
     for (const line of lines) {
@@ -381,16 +540,13 @@ class StoryGenerator {
         const character = match[1].trim();
         const tone = match[2].trim();
         const dialogue = match[3].trim();
-        // Add tone instruction and dialogue separately
         toneInstructions.push(`Speak the following line for ${character} in a ${tone} tone: ${dialogue}`);
         processedText += `${dialogue}\n`;
       } else {
-        // Handle non-dialogue lines (e.g., stage directions) if any
         processedText += `${line}\n`;
       }
     }
 
-    // Create narration prompt with tone instructions
     const narrationPrompt = `TTS the following conversation in Hebrew. Use the tone instructions provided to determine the speaking style for each line, but do not read the tone instructions or character names aloud. Apply the specified tone for each line until the next line or tone change. Ensure the text is spoken exactly as provided, preserving all Hebrew vocalization (niqqud):\n\nTone Instructions:\n${toneInstructions.join('\n')}\n\nText to speak:\n${processedText}`;
 
     const requestBody = {
@@ -408,8 +564,6 @@ class StoryGenerator {
         }
       }
     };
-
-    console.log("Sending TTS request with body:", JSON.stringify(requestBody));
 
     const model = "gemini-2.5-flash-preview-tts";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
@@ -443,8 +597,6 @@ class StoryGenerator {
     }
 
     const data = await response.json();
-    console.log("API response data:", data);
-
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0] || !data.candidates[0].content.parts[0].inlineData || !data.candidates[0].content.parts[0].inlineData.data) {
       throw new Error("לא התקבל אודיו תקין מה-API");
     }
@@ -471,7 +623,6 @@ class StoryGenerator {
       return;
     }
 
-    console.log("Handling audio response, blob size:", audioBlob.size);
     this.currentAudioBlob = audioBlob;
 
     const audioPlayer = document.getElementById("audioPlayer");
@@ -494,11 +645,16 @@ class StoryGenerator {
     const url = URL.createObjectURL(this.currentAudioBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `story_${Date.now()}.wav`;
+    a.download = `story_episode_${this.currentEpisode}_${Date.now()}.wav`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  showContinueStorySection() {
+    document.getElementById("continueStorySection").style.display = "block";
+    this.showStep(4);
   }
 
   validateApiKey() {
@@ -516,12 +672,13 @@ class StoryGenerator {
   }
 
   showStep(stepNumber) {
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
       const step = document.getElementById(`step${i}`);
       if (step) {
         step.style.display = i <= stepNumber ? "block" : "none";
       }
     }
+    document.getElementById("continueStorySection").style.display = stepNumber >= 3 && this.settings.seriesStory ? "block" : "none";
   }
 
   showStatus(elementId, message, type) {
@@ -551,18 +708,24 @@ class StoryGenerator {
   resetForm() {
     document.getElementById("storyIdea").value = "";
     document.getElementById("scriptContent").value = "";
+    document.getElementById("storyNotes").value = "";
 
     this.speakers = [];
     this.currentScript = "";
+    this.seriesScripts = [];
+    this.currentEpisode = 1;
 
     const audioPlayer = document.getElementById("audioPlayer");
     const audioPlaceholder = document.getElementById("audioPlaceholder");
     const downloadButton = document.getElementById("downloadAudio");
+    const continueButton = document.getElementById("continueStory");
 
     audioPlayer.style.display = "none";
     audioPlayer.src = "";
     audioPlaceholder.style.display = "block";
     downloadButton.style.display = "none";
+    continueButton.style.display = "none";
+    document.getElementById("continueStorySection").style.display = "none";
 
     this.currentAudioBlob = null;
 
