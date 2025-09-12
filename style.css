@@ -260,6 +260,7 @@ body {
 
 input[type="text"],
 input[type="password"],
+input[type="number"],
 textarea {
   width: 100%;
   padding: 15px;
