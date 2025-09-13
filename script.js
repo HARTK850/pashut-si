@@ -36,7 +36,6 @@ class StoryGenerator {
     // Audio controls
     document.getElementById("downloadAudio").addEventListener("click", () => this.downloadAudio());
     document.getElementById("createNew").addEventListener("click", () => this.resetForm());
-    document.getElementById("continueStory").addEventListener("click", () => this.showContinueStorySection());
 
     // Modals
     this.setupModals();
@@ -158,8 +157,11 @@ class StoryGenerator {
 
       this.apiKey = apiKey;
       localStorage.setItem("gemini_api_key", apiKey);
-      this.showStatus("apiStatus", "מפתח API נשמר בהצלחה", "success");
-      document.getElementById("apiKeyModal").style.display = "none";
+      this.showStatus("apiStatus", "מפתח API תקין! החלון ייסגר בעוד מספר שניות...", "success");
+      setTimeout(() => {
+        document.getElementById("apiKeyModal").style.display = "none";
+        document.getElementById("apiStatus").style.display = "none";
+      }, 3000);
     } catch (error) {
       this.showStatus("apiStatus", "מפתח API לא תקין", "error");
     }
@@ -238,7 +240,11 @@ class StoryGenerator {
     this.settings.seriesStory = seriesCheckbox.checked;
     if (seriesCheckbox.checked) {
       const episodeCount = document.getElementById("episodeCount").value;
-      this.settings.episodeCount = episodeCount ? parseInt(episodeCount) : undefined;
+      if (!episodeCount || episodeCount < 1) {
+        this.showError("חובה להגדיר מספר פרקים עבור סיפור בהמשכים");
+        return;
+      }
+      this.settings.episodeCount = parseInt(episodeCount);
     } else {
       delete this.settings.episodeCount;
     }
@@ -276,9 +282,8 @@ class StoryGenerator {
     document.getElementById("audioPlayer").style.display = "none";
     document.getElementById("audioPlaceholder").style.display = "block";
     document.getElementById("downloadAudio").style.display = "none";
-    document.getElementById("continueStory").style.display = this.settings.seriesStory ? "inline-flex" : "none";
+    document.getElementById("continueStorySection").style.display = this.settings.seriesStory ? "block" : "none";
     document.getElementById("historyModal").style.display = "none";
-    document.getElementById("continueStorySection").style.display = "none";
   }
 
   saveToHistory() {
@@ -361,7 +366,7 @@ class StoryGenerator {
       this.setupSpeakersList();
       this.showStep(2);
       this.saveToHistory();
-      document.getElementById("continueStory").style.display = this.settings.seriesStory ? "inline-flex" : "none";
+      document.getElementById("continueStorySection").style.display = this.settings.seriesStory ? "block" : "none";
     } catch (error) {
       console.error("Error generating script:", error);
       this.showError("שגיאה ביצירת התסריט: " + error.message);
@@ -428,8 +433,7 @@ class StoryGenerator {
       this.setupSpeakersList();
       this.showStep(2);
       this.saveToHistory();
-      document.getElementById("continueStorySection").style.display = "none";
-      document.getElementById("continueStory").style.display = this.settings.seriesStory && (!this.settings.episodeCount || this.currentEpisode <= this.settings.episodeCount) ? "inline-flex" : "none";
+      document.getElementById("continueStorySection").style.display = this.settings.seriesStory && this.currentEpisode < this.settings.episodeCount ? "block" : "none";
     } catch (error) {
       console.error("Error generating next episode:", error);
       this.showError("שגיאה ביצירת פרק הבא: " + error.message);
@@ -448,15 +452,14 @@ class StoryGenerator {
     }
 
     let seriesPrompt = "";
-    if (this.settings.seriesStory) {
-      const episodeCount = this.settings.episodeCount || "בלתי מוגבל";
-      seriesPrompt = `הסיפור הוא חלק מסדרה בת ${episodeCount} פרקים. צור תסריט לפרק הראשון שמבסס את העלילה ומשאיר פתח להמשך.`;
+    if (this.settings.seriesStory && this.settings.episodeCount) {
+      seriesPrompt = `הסיפור הוא חלק מסדרה בת ${this.settings.episodeCount} פרקים. צור תסריט לפרק הראשון שמבסס את העלילה ומשאיר פתח להמשך אם יש פרקים נוספים, או מסיים את העלילה אם זה הפרק הראשון והאחרון.`;
     }
 
     let introPrompt = "";
     if (this.settings.addIntro) {
       const storyStyle = this.settings.storyStyle || "מגוון";
-      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - סיפור מתח, האזנה ערבה!").`;
+      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - סיפור מתח, האזנה ערבה!"). הפתיח לא צריך להיות בתוך סוגריים מרובעים או כחלק מדיאלוג, והוא צריך להיקרא כחלק טבעי מהסיפור על ידי ה-TTS ללא קריאת סוגריים או הוראות.`;
     }
 
     let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt} ${seriesPrompt} ${introPrompt}
@@ -482,7 +485,7 @@ class StoryGenerator {
     let introPrompt = "";
     if (this.settings.addIntro) {
       const storyStyle = this.settings.storyStyle || "מגוון";
-      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), מספר הפרק, וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - פרק 2, סיפור מתח, האזנה ערבה!").`;
+      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), מספר הפרק, וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - פרק 2, סיפור מתח, האזנה ערבה!"). הפתיח לא צריך להיות בתוך סוגריים מרובעים או כחלק מדיאלוג, והוא צריך להיקרא כחלק טבעי מהסיפור על ידי ה-TTS ללא קריאת סוגריים או הוראות.`;
     }
 
     const previousScripts = this.seriesScripts.join("\n\n---\n\n");
@@ -492,7 +495,8 @@ class StoryGenerator {
 - ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
 - פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
 - פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט, כולל הפתיח אם נדרש. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '[' או לפני הפתיח.
-- וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.`;
+- וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.
+- אם זה הפרק האחרון בסדרה (פרק ${this.settings.episodeCount} מתוך ${this.settings.episodeCount}), וודא שהעלילה מסתיימת בצורה מלאה וברורה ללא פתח להמשך.`;
 
     return prompt;
   }
@@ -509,7 +513,6 @@ class StoryGenerator {
     try {
       await this.generateAudioWithGeminiTTS();
       this.showStep(3);
-      document.getElementById("continueStory").style.display = this.settings.seriesStory && (!this.settings.episodeCount || this.currentEpisode < this.settings.episodeCount) ? "inline-flex" : "none";
     } catch (error) {
       console.error("Error generating audio:", error);
       if (error.message.includes("429")) {
@@ -547,7 +550,7 @@ class StoryGenerator {
       }
     }
 
-    const narrationPrompt = `TTS the following conversation in Hebrew. Use the tone instructions provided to determine the speaking style for each line, but do not read the tone instructions or character names aloud. Apply the specified tone for each line until the next line or tone change. Ensure the text is spoken exactly as provided, preserving all Hebrew vocalization (niqqud):\n\nTone Instructions:\n${toneInstructions.join('\n')}\n\nText to speak:\n${processedText}`;
+    const narrationPrompt = `TTS the following conversation in Hebrew. Use the tone instructions provided to determine the speaking style for each line, but do not read the tone instructions or character names aloud (ignore anything within square brackets []). Apply the specified tone for each line until the next line or tone change. Ensure the text is spoken exactly as provided, preserving all Hebrew vocalization (niqqud):\n\nTone Instructions:\n${toneInstructions.join('\n')}\n\nText to speak:\n${processedText}`;
 
     const requestBody = {
       contents: [{
@@ -652,11 +655,6 @@ class StoryGenerator {
     URL.revokeObjectURL(url);
   }
 
-  showContinueStorySection() {
-    document.getElementById("continueStorySection").style.display = "block";
-    this.showStep(4);
-  }
-
   validateApiKey() {
     if (!this.apiKey) {
       this.showError("אנא הכנס מפתח API תקין לפני המשך");
@@ -678,7 +676,7 @@ class StoryGenerator {
         step.style.display = i <= stepNumber ? "block" : "none";
       }
     }
-    document.getElementById("continueStorySection").style.display = stepNumber >= 3 && this.settings.seriesStory ? "block" : "none";
+    document.getElementById("continueStorySection").style.display = stepNumber >= 3 && this.settings.seriesStory && this.currentEpisode < this.settings.episodeCount ? "block" : "none";
   }
 
   showStatus(elementId, message, type) {
@@ -718,14 +716,11 @@ class StoryGenerator {
     const audioPlayer = document.getElementById("audioPlayer");
     const audioPlaceholder = document.getElementById("audioPlaceholder");
     const downloadButton = document.getElementById("downloadAudio");
-    const continueButton = document.getElementById("continueStory");
 
     audioPlayer.style.display = "none";
     audioPlayer.src = "";
     audioPlaceholder.style.display = "block";
     downloadButton.style.display = "none";
-    continueButton.style.display = "none";
-    document.getElementById("continueStorySection").style.display = "none";
 
     this.currentAudioBlob = null;
 
@@ -802,7 +797,7 @@ class StoryGenerator {
     writeString(36, "data");
     view.setUint32(40, dataSize, true);
 
-    for (let i = 0; i < pcmData.length; i++) {
+    for (let i = 0; i < dataSize; i++) {
       view.setUint8(44 + i, pcmData[i]);
     }
 
@@ -810,27 +805,16 @@ class StoryGenerator {
   }
 
   extractSpeakersFromScript(script) {
-    const speakerRegex = /\[([^\]]+)\]:/g;
-    const speakerSet = new Set();
-    let match;
-
-    while ((match = speakerRegex.exec(script)) !== null) {
-      const speakerName = match[1].trim();
-      if (speakerName && !speakerName.includes("צליל") && !speakerName.includes("מוזיקה")) {
-        speakerSet.add(speakerName);
-      }
-    }
-
-    this.speakers = Array.from(speakerSet);
-    console.log("Extracted speakers:", this.speakers);
+    const lines = script.split('\n').filter(line => line.trim());
+    const speakerRegex = /\[([^\]]+)\]:/;
+    this.speakers = [...new Set(lines.map(line => {
+      const match = line.match(speakerRegex);
+      return match ? match[1] : null;
+    }).filter(s => s))];
   }
 
   setupSpeakersList() {
-    if (this.speakers.length > 0) {
-      this.showStatus("scriptStatus", `נמצאו ${this.speakers.length} דוברים: ${this.speakers.join(", ")}`, "success");
-    } else {
-      this.showStatus("scriptStatus", "לא נמצאו דוברים בתסריט", "error");
-    }
+    // Not implemented in this version, can be added if needed
   }
 }
 
