@@ -73,7 +73,6 @@ class StoryGenerator {
     const selectFields = [
       { trigger: "storyStyleTrigger", modal: "storyStyleModal", setting: "storyStyle", customInput: "storyStyleCustom" },
       { trigger: "storyLengthTrigger", modal: "storyLengthModal", setting: "storyLength", customInput: "storyLengthCustom" },
-      { trigger: "storyModelTrigger", modal: "storyModelModal", setting: "storyModel" },
       { trigger: "voiceNameTrigger", modal: "voiceNameModal", setting: "voiceName" },
       { trigger: "speakingRateTrigger", modal: "speakingRateModal", setting: "speakingRate" },
       { trigger: "narrationStyleTrigger", modal: "narrationStyleModal", setting: "narrationStyle" },
@@ -82,34 +81,36 @@ class StoryGenerator {
 
     selectFields.forEach(field => {
       const trigger = document.getElementById(field.trigger);
-      const modal = document.getElementById(field.modal);
-      const options = modal.querySelectorAll(".select-option");
-      const customInput = field.customInput ? document.getElementById(field.customInput) : null;
+      if (trigger) {
+        const modal = document.getElementById(field.modal);
+        const options = modal ? modal.querySelectorAll(".select-option") : [];
+        const customInput = field.customInput ? document.getElementById(field.customInput) : null;
 
-      trigger.addEventListener("click", () => {
-        modal.style.display = "flex";
-      });
-
-      options.forEach(option => {
-        option.addEventListener("click", () => {
-          const value = option.getAttribute("data-value");
-          this.settings[field.setting] = value;
-          trigger.textContent = option.textContent;
-          modal.style.display = "none";
-
-          if (value === "other" && customInput) {
-            customInput.style.display = "block";
-            customInput.focus();
-            customInput.addEventListener("input", () => {
-              this.settings[field.setting] = customInput.value.trim();
-              trigger.textContent = customInput.value.trim() || option.textContent;
-            }, { once: true });
-          } else if (customInput) {
-            customInput.style.display = "none";
-            customInput.value = "";
-          }
+        trigger.addEventListener("click", () => {
+          if (modal) modal.style.display = "flex";
         });
-      });
+
+        options.forEach(option => {
+          option.addEventListener("click", () => {
+            const value = option.getAttribute("data-value");
+            this.settings[field.setting] = value;
+            trigger.textContent = option.textContent;
+            if (modal) modal.style.display = "none";
+
+            if (value === "other" && customInput) {
+              customInput.style.display = "block";
+              customInput.focus();
+              customInput.addEventListener("input", () => {
+                this.settings[field.setting] = customInput.value.trim();
+                trigger.textContent = customInput.value.trim() || option.textContent;
+              }, { once: true });
+            } else if (customInput) {
+              customInput.style.display = "none";
+              customInput.value = "";
+            }
+          });
+        });
+      }
     });
   }
 
@@ -177,7 +178,6 @@ class StoryGenerator {
     const selectFields = [
       { id: "storyStyleTrigger", setting: "storyStyle", default: "תן לגמיני להחליט", customInput: "storyStyleCustom" },
       { id: "storyLengthTrigger", setting: "storyLength", default: "תן לגמיני להחליט", customInput: "storyLengthCustom" },
-      { id: "storyModelTrigger", setting: "storyModel", default: "גמיני 2.5 פלאש" },
       { id: "voiceNameTrigger", setting: "voiceName", default: "תן לגמיני להחליט" },
       { id: "speakingRateTrigger", setting: "speakingRate", default: "תן לגמיני להחליט" },
       { id: "narrationStyleTrigger", setting: "narrationStyle", default: "תן לגמיני להחליט (מומלץ)" },
