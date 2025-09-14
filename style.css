@@ -307,12 +307,6 @@ textarea {
   gap: 10px;
 }
 
-.pair-group {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
 .setting-group label {
   display: block;
   margin-bottom: 0;
@@ -471,16 +465,6 @@ textarea {
 
   .settings-grid {
     grid-template-columns: 1fr;
-  }
-
-  .setting-group {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .pair-group {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .input-group {
