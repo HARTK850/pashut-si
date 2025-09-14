@@ -260,7 +260,6 @@ body {
 
 input[type="text"],
 input[type="password"],
-input[type="number"],
 textarea {
   width: 100%;
   padding: 15px;
@@ -301,23 +300,12 @@ textarea {
   margin: 20px 0;
 }
 
-.setting-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .setting-group label {
   display: block;
-  margin-bottom: 0;
+  margin-bottom: 8px;
   font-weight: 500;
   color: #2c3e50;
   text-align: right;
-  flex: 1;
-}
-
-.setting-group input[type="checkbox"] {
-  margin: 0;
 }
 
 /* Buttons */
