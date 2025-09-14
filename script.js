@@ -9,6 +9,7 @@ class StoryGenerator {
     this.currentStoryId = null;
     this.currentEpisode = 1;
     this.seriesScripts = [];
+    this.seriesVoiceSettings = {}; // To store voice settings for consistency
     this.init();
   }
 
@@ -73,6 +74,7 @@ class StoryGenerator {
     const selectFields = [
       { trigger: "storyStyleTrigger", modal: "storyStyleModal", setting: "storyStyle", customInput: "storyStyleCustom" },
       { trigger: "storyLengthTrigger", modal: "storyLengthModal", setting: "storyLength", customInput: "storyLengthCustom" },
+      { trigger: "storyModelTrigger", modal: "storyModelModal", setting: "storyModel" },
       { trigger: "voiceNameTrigger", modal: "voiceNameModal", setting: "voiceName" },
       { trigger: "speakingRateTrigger", modal: "speakingRateModal", setting: "speakingRate" },
       { trigger: "narrationStyleTrigger", modal: "narrationStyleModal", setting: "narrationStyle" },
@@ -81,36 +83,34 @@ class StoryGenerator {
 
     selectFields.forEach(field => {
       const trigger = document.getElementById(field.trigger);
-      if (trigger) {
-        const modal = document.getElementById(field.modal);
-        const options = modal ? modal.querySelectorAll(".select-option") : [];
-        const customInput = field.customInput ? document.getElementById(field.customInput) : null;
+      const modal = document.getElementById(field.modal);
+      const options = modal.querySelectorAll(".select-option");
+      const customInput = field.customInput ? document.getElementById(field.customInput) : null;
 
-        trigger.addEventListener("click", () => {
-          if (modal) modal.style.display = "flex";
+      trigger.addEventListener("click", () => {
+        modal.style.display = "flex";
+      });
+
+      options.forEach(option => {
+        option.addEventListener("click", () => {
+          const value = option.getAttribute("data-value");
+          this.settings[field.setting] = value;
+          trigger.textContent = option.textContent;
+          modal.style.display = "none";
+
+          if (value === "other" && customInput) {
+            customInput.style.display = "block";
+            customInput.focus();
+            customInput.addEventListener("input", () => {
+              this.settings[field.setting] = customInput.value.trim();
+              trigger.textContent = customInput.value.trim() || option.textContent;
+            }, { once: true });
+          } else if (customInput) {
+            customInput.style.display = "none";
+            customInput.value = "";
+          }
         });
-
-        options.forEach(option => {
-          option.addEventListener("click", () => {
-            const value = option.getAttribute("data-value");
-            this.settings[field.setting] = value;
-            trigger.textContent = option.textContent;
-            if (modal) modal.style.display = "none";
-
-            if (value === "other" && customInput) {
-              customInput.style.display = "block";
-              customInput.focus();
-              customInput.addEventListener("input", () => {
-                this.settings[field.setting] = customInput.value.trim();
-                trigger.textContent = customInput.value.trim() || option.textContent;
-              }, { once: true });
-            } else if (customInput) {
-              customInput.style.display = "none";
-              customInput.value = "";
-            }
-          });
-        });
-      }
+      });
     });
   }
 
@@ -178,6 +178,7 @@ class StoryGenerator {
     const selectFields = [
       { id: "storyStyleTrigger", setting: "storyStyle", default: "תן לגמיני להחליט", customInput: "storyStyleCustom" },
       { id: "storyLengthTrigger", setting: "storyLength", default: "תן לגמיני להחליט", customInput: "storyLengthCustom" },
+      { id: "storyModelTrigger", setting: "storyModel", default: "גמיני 2.5 פלאש" },
       { id: "voiceNameTrigger", setting: "voiceName", default: "תן לגמיני להחליט" },
       { id: "speakingRateTrigger", setting: "speakingRate", default: "תן לגמיני להחליט" },
       { id: "narrationStyleTrigger", setting: "narrationStyle", default: "תן לגמיני להחליט (מומלץ)" },
@@ -282,7 +283,7 @@ class StoryGenerator {
     document.getElementById("audioPlayer").style.display = "none";
     document.getElementById("audioPlaceholder").style.display = "block";
     document.getElementById("downloadAudio").style.display = "none";
-    document.getElementById("continueStorySection").style.display = this.settings.seriesStory ? "block" : "none";
+    document.getElementById("continueStorySection").style.display = "none";
     document.getElementById("historyModal").style.display = "none";
   }
 
@@ -366,7 +367,7 @@ class StoryGenerator {
       this.setupSpeakersList();
       this.showStep(2);
       this.saveToHistory();
-      document.getElementById("continueStorySection").style.display = this.settings.seriesStory ? "block" : "none";
+      document.getElementById("continueStorySection").style.display = "none";
     } catch (error) {
       console.error("Error generating script:", error);
       this.showError("שגיאה ביצירת התסריט: " + error.message);
@@ -433,7 +434,7 @@ class StoryGenerator {
       this.setupSpeakersList();
       this.showStep(2);
       this.saveToHistory();
-      document.getElementById("continueStorySection").style.display = this.settings.seriesStory && this.currentEpisode < this.settings.episodeCount ? "block" : "none";
+      document.getElementById("continueStorySection").style.display = "none";
     } catch (error) {
       console.error("Error generating next episode:", error);
       this.showError("שגיאה ביצירת פרק הבא: " + error.message);
@@ -459,7 +460,7 @@ class StoryGenerator {
     let introPrompt = "";
     if (this.settings.addIntro) {
       const storyStyle = this.settings.storyStyle || "מגוון";
-      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - סיפור מתח, האזנה ערבה!"). הפתיח לא צריך להיות בתוך סוגריים מרובעים או כחלק מדיאלוג, והוא צריך להיקרא כחלק טבעי מהסיפור על ידי ה-TTS ללא קריאת סוגריים או הוראות.`;
+      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), וברכת "האזנה ערבה!". הפתיח חייב להיות נפרד ולא בתוך סוגריים מרובעים, והוא צריך להיות חלק מהטקסט שיוקרא על ידי ה-TTS כחלק מהסיפור. דוגמה: "הבוגד - סיפור מתח, האזנה ערבה!" ומיד לאחריו התחל את הדיאלוגים.`;
     }
 
     let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt} ${seriesPrompt} ${introPrompt}
@@ -485,7 +486,7 @@ class StoryGenerator {
     let introPrompt = "";
     if (this.settings.addIntro) {
       const storyStyle = this.settings.storyStyle || "מגוון";
-      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), מספר הפרק, וברכת "האזנה ערבה!" (לדוגמה: "הבוגד - פרק 2, סיפור מתח, האזנה ערבה!"). הפתיח לא צריך להיות בתוך סוגריים מרובעים או כחלק מדיאלוג, והוא צריך להיקרא כחלק טבעי מהסיפור על ידי ה-TTS ללא קריאת סוגריים או הוראות.`;
+      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), מספר הפרק, וברכת "האזנה ערבה!". הפתיח חייב להיות נפרד ולא בתוך סוגריים מרובעים, והוא צריך להיות חלק מהטקסט שיוקרא על ידי ה-TTS כחלק מהסיפור. דוגמה: "הבוגד - פרק 2, סיפור מתח, האזנה ערבה!" ומיד לאחריו התחל את הדיאלוגים.`;
     }
 
     const previousScripts = this.seriesScripts.join("\n\n---\n\n");
@@ -513,6 +514,11 @@ class StoryGenerator {
     try {
       await this.generateAudioWithGeminiTTS();
       this.showStep(3);
+      if (this.settings.seriesStory && this.currentEpisode < this.settings.episodeCount) {
+        document.getElementById("continueStorySection").style.display = "block";
+      } else {
+        document.getElementById("continueStorySection").style.display = "none";
+      }
     } catch (error) {
       console.error("Error generating audio:", error);
       if (error.message.includes("429")) {
@@ -676,7 +682,7 @@ class StoryGenerator {
         step.style.display = i <= stepNumber ? "block" : "none";
       }
     }
-    document.getElementById("continueStorySection").style.display = stepNumber >= 3 && this.settings.seriesStory && this.currentEpisode < this.settings.episodeCount ? "block" : "none";
+    document.getElementById("continueStorySection").style.display = "none";
   }
 
   showStatus(elementId, message, type) {
@@ -797,7 +803,7 @@ class StoryGenerator {
     writeString(36, "data");
     view.setUint32(40, dataSize, true);
 
-    for (let i = 0; i < dataSize; i++) {
+    for (let i = 0; i < pcmData.length; i++) {
       view.setUint8(44 + i, pcmData[i]);
     }
 
@@ -805,16 +811,27 @@ class StoryGenerator {
   }
 
   extractSpeakersFromScript(script) {
-    const lines = script.split('\n').filter(line => line.trim());
-    const speakerRegex = /\[([^\]]+)\]:/;
-    this.speakers = [...new Set(lines.map(line => {
-      const match = line.match(speakerRegex);
-      return match ? match[1] : null;
-    }).filter(s => s))];
+    const speakerRegex = /\[([^\]]+)\]:/g;
+    const speakerSet = new Set();
+    let match;
+
+    while ((match = speakerRegex.exec(script)) !== null) {
+      const speakerName = match[1].trim();
+      if (speakerName && !speakerName.includes("צליל") && !speakerName.includes("מוזיקה")) {
+        speakerSet.add(speakerName);
+      }
+    }
+
+    this.speakers = Array.from(speakerSet);
+    console.log("Extracted speakers:", this.speakers);
   }
 
   setupSpeakersList() {
-    // Not implemented in this version, can be added if needed
+    if (this.speakers.length > 0) {
+      this.showStatus("scriptStatus", `נמצאו ${this.speakers.length} דוברים: ${this.speakers.join(", ")}`, "success");
+    } else {
+      this.showStatus("scriptStatus", "לא נמצאו דוברים בתסריט", "error");
+    }
   }
 }
 
