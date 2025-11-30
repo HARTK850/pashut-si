@@ -1,6 +1,6 @@
 class StoryGenerator {
   constructor() {
-    this.apiKey = localStorage.getItem("gemini_api_key") || "";
+    // מפתח ה-API הוסר. הכל מטופל כעת על ידי שרת Vercel.
     this.currentAudioBlob = null;
     this.currentScript = "";
     this.speakers = [];
@@ -15,19 +15,16 @@ class StoryGenerator {
 
   init() {
     this.bindEvents();
-    this.loadApiKey();
-    this.showApiKeyModalIfNeeded();
+    // loadApiKey() ו-showApiKeyModalIfNeeded() הוסרו
     this.loadSettings();
     this.setupSelectModals();
     this.setupSeriesOptions();
   }
 
   bindEvents() {
-    // API Key management
-    document.getElementById("saveApiKey").addEventListener("click", () => this.saveApiKey());
-    document.getElementById("apiKey").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") this.saveApiKey();
-    });
+    // ניהול מפתח API הוסר מהלקוח
+    // document.getElementById("saveApiKey").addEventListener("click", () => this.saveApiKey());
+    // document.getElementById("apiKey").addEventListener("keypress", (e) => { ... });
 
     // Story generation
     document.getElementById("generateScript").addEventListener("click", () => this.generateScript());
@@ -40,7 +37,7 @@ class StoryGenerator {
 
     // Modals
     this.setupModals();
-
+    
     // Settings
     document.getElementById("saveSettings").addEventListener("click", () => this.saveSettings());
   }
@@ -64,10 +61,8 @@ class StoryGenerator {
       this.loadHistory();
       document.getElementById("historyModal").style.display = "flex";
     });
-
-    document.getElementById("apiKeyBtn").addEventListener("click", () => {
-      document.getElementById("apiKeyModal").style.display = "flex";
-    });
+    
+    // כפתור מפתח API הוסר - יש להסירו גם מ-index.html
   }
 
   setupSelectModals() {
@@ -125,66 +120,10 @@ class StoryGenerator {
     });
   }
 
-  showApiKeyModalIfNeeded() {
-    if (!this.apiKey) {
-      document.getElementById("apiKeyModal").style.display = "flex";
-    }
-  }
-
-  // **** תיקון API KEY VALIDATION ****
-  async saveApiKey() {
-    const apiKeyInput = document.getElementById("apiKey");
-    const apiKey = apiKeyInput.value.trim();
-
-    if (!apiKey) {
-      this.showStatus("apiStatus", "אנא הכנס מפתח API תקין", "error");
-      return;
-    }
-
-    try {
-      // בדיקה פשוטה עם מודל יציב לבדיקה
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: "Test" }] }],
-          }),
-        }
-      );
-
-      // בדיקת שגיאות נפוצות במיוחד 400 (API Key not valid)
-      if (response.status === 400) {
-           const errorData = await response.json();
-           if (errorData.error.message.includes('API key not valid')) {
-               throw new Error("API Key not valid");
-           }
-      }
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      this.apiKey = apiKey;
-      localStorage.setItem("gemini_api_key", apiKey);
-      this.showStatus("apiStatus", "מפתח API תקין! החלון ייסגר בעוד מספר שניות...", "success");
-      setTimeout(() => {
-        document.getElementById("apiKeyModal").style.display = "none";
-        document.getElementById("apiStatus").style.display = "none";
-      }, 3000);
-    } catch (error) {
-      console.error("API Key Check Error:", error);
-      this.showStatus("apiStatus", "מפתח API לא תקין או שגיאת רשת", "error");
-    }
-  }
-  // **********************************
-
-  loadApiKey() {
-    if (this.apiKey) {
-      document.getElementById("apiKey").value = this.apiKey;
-    }
-  }
+  // הפונקציות לניהול מפתח API הוסרו מהלקוח
+  // showApiKeyModalIfNeeded() {}
+  // saveApiKey() {}
+  // loadApiKey() {}
 
   loadSettings() {
     const selectFields = [
@@ -335,35 +274,32 @@ class StoryGenerator {
       const prompt = this.buildScriptPrompt(storyIdea);
 
       const model = this.settings.storyModel || "gemini-2.5-flash";
+      
+      // *** שינוי קריטי: קריאה לשרת ה-Vercel החדש (api/gemini) ***
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`,
+        'https://pashut-si.vercel.app/api/gemini', // הכתובת הקבועה של Vercel שלך
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: prompt,
-                  },
-                ],
-              },
-            ],
+            model: model,
+            requestBody: { 
+              contents: [{ parts: [{ text: prompt }] }],
+            }
           }),
         }
       );
+      // *********************************************************
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(`שגיאה בשרת: ${errorData.httpStatus || response.status} - ${errorData.error}`);
       }
 
       const data = await response.json();
       let scriptContent = data.candidates[0].content.parts[0].text;
 
-      // **** תיקון לוגיקת ניקוי הפלט ****
+      // **** לוגיקת ניקוי פלט משופרת ****
       let processedScript = scriptContent;
       // הסרת כל טקסט לפני הדיאלוג או הפתיח הראשון
       const firstDialogueIndex = processedScript.indexOf('[');
@@ -373,8 +309,7 @@ class StoryGenerator {
       processedScript = processedScript.trim();
 
       // ניקוי נוסף: הסרת שורות אקשן שגויות שהתחילו בטעות ב- [ ]
-      // שומרים רק שורות שהן דיאלוג ([דמות]: ...) או אקשן בתוך סוגריים עגולים.
-      // הפילטר הזה שומר רק שורות שמכילות את הסימן ":" (דיאלוג), או שהן לא מתחילות ב- '['
+      // שומרים רק שורות שהן דיאלוג ([דמות]: ...) או אקשן שאינו מתחיל ב- '['
       processedScript = processedScript.split('\n')
           .filter(line => line.includes(':') || !line.trim().startsWith('['))
           .join('\n');
@@ -414,29 +349,26 @@ class StoryGenerator {
       const prompt = this.buildNextEpisodePrompt(storyNotes);
 
       const model = this.settings.storyModel || "gemini-2.5-flash";
+      
+      // *** שינוי קריטי: קריאה לשרת ה-Vercel החדש (api/gemini) ***
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`,
+        'https://pashut-si.vercel.app/api/gemini', // הכתובת הקבועה של Vercel שלך
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: prompt,
-                  },
-                ],
-              },
-            ],
+            model: model,
+            requestBody: {
+              contents: [{ parts: [{ text: prompt }] }],
+            }
           }),
         }
       );
+      // *********************************************************
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(`שגיאה בשרת: ${errorData.httpStatus || response.status} - ${errorData.error}`);
       }
 
       const data = await response.json();
@@ -474,7 +406,7 @@ class StoryGenerator {
     }
   }
   
-  // **** תיקון PROMPT: שיפור פורמט התסריט ****
+  // **** PROMPT משופר ליצירת תסריט נקי ****
   buildScriptPrompt(storyIdea) {
     let lengthPrompt = "אורך הסיפור צריך להיות לפחות 10 דקות ויכול להגיע עד 15 דקות, עם דיאלוגים מפורטים ומגוונים.";
     if (this.settings.storyLength && this.settings.storyLength !== "תן לגמיני להחליט") {
@@ -558,8 +490,8 @@ ${seriesPrompt} ${introPrompt}
       }
     } catch (error) {
       console.error("Error generating audio:", error);
-      if (error.message.includes("429")) {
-        this.showError("מכסת API מלאה או מוגבלת (429). המתן ונסה שוב, או שדרג את התוכנית.");
+      if (error.message.includes("429") || error.message.includes("All API keys failed")) {
+        this.showError("כל מפתחות ה-API נכשלו. המכסה היומית/דקותית מלאה. נסה שוב מאוחר יותר.");
       } else if (error.message.includes("Vercel")) {
         this.showError("שגיאה במיקסינג: וודא שכתובת ה-Vercel נכונה ושהקובץ `background.mp3` קיים. " + error.message);
       } else {
@@ -571,9 +503,9 @@ ${seriesPrompt} ${introPrompt}
   }
 
   async generateAudioAndMix() {
-    // *** החלף את ה-URL הבא בכתובת ה-Vercel הסופית שלך: ***
+    // *** כתובת ה-Vercel הקבועה שלך ***
     const VERCEL_ENDPOINT = 'https://pashut-si.vercel.app/api/mix-audio';
-    // ***************************************************************
+    // **********************************
 
     const narrationText = this.currentScript;
     if (!narrationText) {
@@ -586,7 +518,7 @@ ${seriesPrompt} ${introPrompt}
     // Regex מזהה: [דמות]: (הנחיה) טקסט מנוקד
     const dialogueRegex = /\[([^\]]+)\]: \(([^\)]+)\) (.+)/; 
 
-    // --- שלב 1: יצירת קטעי אודיו בודדים מ-Gemini TTS ---
+    // --- שלב 1: יצירת קטעי אודיו בודדים באמצעות השרת המתווך ---
     this.showStatus("scriptStatus", `מייצר ${lines.length} קטעי שמע בודדים...`, "success");
 
     for (let i = 0; i < lines.length; i++) {
@@ -607,7 +539,7 @@ ${seriesPrompt} ${introPrompt}
             }
         }
         
-        // יצירת קטע שמע יחיד והמרתו ל-Base64 WAV
+        // יצירת קטע שמע יחיד והמרתו ל-Base64 WAV דרך השרת
         const base64Data = await this.generateSegmentBase64(processedText, voiceName);
         base64Segments.push(base64Data);
         
@@ -640,9 +572,11 @@ ${seriesPrompt} ${introPrompt}
     this.showStatus("scriptStatus", "המיקסינג הושלם בהצלחה!", "success");
   }
 
-  // **** תיקון מכסת ה-API (429) ****
+  // **** פונקציה לעיבוד קטע שמע דרך השרת (עם סיבוב מפתחות) ****
   async generateSegmentBase64(text, voiceName) {
     
+    // השרת (api/gemini) מטפל בסיבוב מפתחות ומשמש כמתווך.
+    const model = "gemini-2.5-flash-preview-tts";
     const requestBody = {
       contents: [{
         parts: [{ text: text }]
@@ -658,41 +592,24 @@ ${seriesPrompt} ${introPrompt}
         }
       }
     };
-
-    const model = "gemini-2.5-flash-preview-tts";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
-
-    let response;
-    // הגדלת ניסיונות ל-5. 
-    // המתנה ארוכה יותר בין ניסיונות (90 שניות) בגלל מגבלת המכסה הנמוכה.
-    for (let attempt = 0; attempt < 5; attempt++) { 
-      response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (response.ok) break;
-
-      if (response.status === 429) {
-        console.log(`Retry ${attempt + 1} after 90s due to 429`);
-        // אם זה הניסיון האחרון, צא מהלולאה
-        if (attempt === 4) break; 
-        
-        await new Promise((r) => setTimeout(r, 90000)); // המתנה של 90 שניות
-      } else {
-        const errorText = await response.text();
-        console.error("Full error response:", errorText);
-        throw new Error(`שגיאת API ב-TTS (קטע בודד): ${errorText}`);
-      }
-    }
+    
+    // ** קריאה לשרת במקום לגוגל **
+    const response = await fetch(
+        'https://pashut-si.vercel.app/api/gemini', // הכתובת הקבועה של Vercel שלך
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: model,
+                requestBody: requestBody,
+            }),
+        }
+    );
 
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Full error response:", errorText);
-        throw new Error(`שגיאת API ב-TTS (קטע בודד): ${errorText}`);
+        const errorData = await response.json();
+        console.error("Full error response from server wrapper:", errorData);
+        throw new Error(`שגיאת API ב-TTS דרך השרת: ${errorData.httpStatus || response.status} - ${errorData.error}`);
     }
     // **********************************
 
@@ -720,6 +637,7 @@ ${seriesPrompt} ${introPrompt}
         reader.readAsDataURL(wavBlob); 
     });
   }
+  // **********************************
 
   handleAudioResponse(audioBlob) {
     if (audioBlob.size === 0) {
@@ -758,10 +676,7 @@ ${seriesPrompt} ${introPrompt}
   }
 
   validateApiKey() {
-    if (!this.apiKey) {
-      this.showError("אנא הכנס מפתח API תקין לפני המשך");
-      return false;
-    }
+    // מפתח API מאוחסן בשרת - אין צורך בבדיקה בצד הלקוח
     return true;
   }
 
@@ -878,7 +793,8 @@ ${seriesPrompt} ${introPrompt}
 
     while ((match = speakerRegex.exec(script)) !== null) {
       const speakerName = match[1].trim();
-      if (speakerName && !speakerName.includes("צליל") && !speakerName.includes("מוזיקה") && speakerName !== "פתיח") {
+      // מוסיף סינון לשמות פנימיים כמו 'פתיח'
+      if (speakerName && !speakerName.includes("צליל") && !speakerName.includes("מוזיקה") && speakerName.toLowerCase() !== "פתיח") {
         speakerSet.add(speakerName);
       }
     }
