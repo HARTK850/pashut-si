@@ -131,7 +131,7 @@ class StoryGenerator {
     }
   }
 
-  async saveApiKey() {
+async saveApiKey() {
     const apiKeyInput = document.getElementById("apiKey");
     const apiKey = apiKeyInput.value.trim();
 
@@ -141,8 +141,10 @@ class StoryGenerator {
     }
 
     try {
+      // *** הקוד הזה הוא קוד בדיקה פשוט שאינו יוצר שגיאות CORS/מודל ***
+      // *** הוא משתמש בנקודת קצה שמיועדת במפורש לבדיקה פשוטה ומהירה. ***
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -152,8 +154,16 @@ class StoryGenerator {
         }
       );
 
+      // במקום לבדוק OK, נבדוק שגיאת 400 (שגיאה נפוצה עבור מפתח לא נכון)
+      if (response.status === 400) {
+           const errorData = await response.json();
+           if (errorData.error.message.includes('API key not valid')) {
+               throw new Error("API Key not valid");
+           }
+      }
+      
       if (!response.ok) {
-        throw new Error("API Key not valid");
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       this.apiKey = apiKey;
@@ -164,7 +174,8 @@ class StoryGenerator {
         document.getElementById("apiStatus").style.display = "none";
       }, 3000);
     } catch (error) {
-      this.showStatus("apiStatus", "מפתח API לא תקין", "error");
+      console.error("API Key Check Error:", error);
+      this.showStatus("apiStatus", "מפתח API לא תקין או שגיאת רשת", "error");
     }
   }
 
