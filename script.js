@@ -131,7 +131,8 @@ class StoryGenerator {
     }
   }
 
-async saveApiKey() {
+  // **** תיקון API KEY VALIDATION ****
+  async saveApiKey() {
     const apiKeyInput = document.getElementById("apiKey");
     const apiKey = apiKeyInput.value.trim();
 
@@ -141,8 +142,7 @@ async saveApiKey() {
     }
 
     try {
-      // *** הקוד הזה הוא קוד בדיקה פשוט שאינו יוצר שגיאות CORS/מודל ***
-      // *** הוא משתמש בנקודת קצה שמיועדת במפורש לבדיקה פשוטה ומהירה. ***
+      // בדיקה פשוטה עם מודל יציב לבדיקה
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
@@ -154,7 +154,7 @@ async saveApiKey() {
         }
       );
 
-      // במקום לבדוק OK, נבדוק שגיאת 400 (שגיאה נפוצה עבור מפתח לא נכון)
+      // בדיקת שגיאות נפוצות במיוחד 400 (API Key not valid)
       if (response.status === 400) {
            const errorData = await response.json();
            if (errorData.error.message.includes('API key not valid')) {
@@ -178,6 +178,7 @@ async saveApiKey() {
       this.showStatus("apiStatus", "מפתח API לא תקין או שגיאת רשת", "error");
     }
   }
+  // **********************************
 
   loadApiKey() {
     if (this.apiKey) {
@@ -362,12 +363,24 @@ async saveApiKey() {
       const data = await response.json();
       let scriptContent = data.candidates[0].content.parts[0].text;
 
+      // **** תיקון לוגיקת ניקוי הפלט ****
       let processedScript = scriptContent;
+      // הסרת כל טקסט לפני הדיאלוג או הפתיח הראשון
       const firstDialogueIndex = processedScript.indexOf('[');
       if (firstDialogueIndex > -1) {
         processedScript = processedScript.substring(firstDialogueIndex);
       }
       processedScript = processedScript.trim();
+
+      // ניקוי נוסף: הסרת שורות אקשן שגויות שהתחילו בטעות ב- [ ]
+      // שומרים רק שורות שהן דיאלוג ([דמות]: ...) או אקשן בתוך סוגריים עגולים.
+      // הפילטר הזה שומר רק שורות שמכילות את הסימן ":" (דיאלוג), או שהן לא מתחילות ב- '['
+      processedScript = processedScript.split('\n')
+          .filter(line => line.includes(':') || !line.trim().startsWith('['))
+          .join('\n');
+      
+      processedScript = processedScript.trim();
+      // **********************************
 
       document.getElementById("scriptContent").value = processedScript;
       this.currentScript = processedScript;
@@ -435,6 +448,13 @@ async saveApiKey() {
         processedScript = processedScript.substring(firstDialogueIndex);
       }
       processedScript = processedScript.trim();
+      
+      // ניקוי נוסף: הסרת שורות אקשן שגויות שהתחילו בטעות ב- [ ]
+      processedScript = processedScript.split('\n')
+          .filter(line => line.includes(':') || !line.trim().startsWith('['))
+          .join('\n');
+      
+      processedScript = processedScript.trim();
 
       document.getElementById("scriptContent").value = processedScript;
       this.currentScript = processedScript;
@@ -453,7 +473,8 @@ async saveApiKey() {
       this.setLoading(button, spinner, btnText, false);
     }
   }
-
+  
+  // **** תיקון PROMPT: שיפור פורמט התסריט ****
   buildScriptPrompt(storyIdea) {
     let lengthPrompt = "אורך הסיפור צריך להיות לפחות 10 דקות ויכול להגיע עד 15 דקות, עם דיאלוגים מפורטים ומגוונים.";
     if (this.settings.storyLength && this.settings.storyLength !== "תן לגמיני להחליט") {
@@ -471,19 +492,23 @@ async saveApiKey() {
     let introPrompt = "";
     if (this.settings.addIntro) {
       const storyStyle = this.settings.storyStyle || "מגוון";
-      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), וברכת "האזנה ערבה!". הפתיח חייב להיות נפרד ולא בתוך סוגריים מרובעים, והוא צריך להיות חלק מהטקסט שיוקרא על ידי ה-TTS כחלק מהסיפור. דוגמה: "הבוגד - סיפור מתח, האזנה ערבה!" ומיד לאחריו התחל את הדיאלוגים.`;
+      introPrompt = `צור פתיח קצר (עד 2 שורות) הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), וברכת "האזנה ערבה!". הפתיח חייב להיות בפורמט: [פתיח]: (טון נייטרלי) טקסט הפתיח המנוקד. מיד לאחר הפתיח, התחל את שורות הדיאלוג של הסיפור.`;
     }
 
-    let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt} ${seriesPrompt} ${introPrompt}
+    let prompt = `צור תסריט מפורט ומלא בעברית על פי הרעיון הבא: "${storyIdea}". ${lengthPrompt}
+
+${seriesPrompt} ${introPrompt}
 
 הנחיות קריטיות לפורמט הפלט:
-- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
-- פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
-- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט, כולל הפתיח אם נדרש. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '[' או לפני הפתיח.
-- וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.`;
+1. **ניקוד מלא וחובה:** יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
+2. **פורמט דיאלוג קבוע:** כל שורת דיאלוג **חייבת** להיות בפורמט: **[שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.**
+3. **הפרדת שורות אקשן:** **אל תשתמש** בסוגריים מרובעים [ ] בשום מקום אחר מלבד שם הדמות (לדוגמה: [דמות]). אם יש צורך בתיאור אקשן או תיאור סביבה, השתמש רק בסוגריים **עגולים** () וודא שהטקסט אינו מנוקד, לדוגמה: **(צליל של דלת נפתחת).** המערכת תקריא כל שורה.
+4. **פלט נקי:** הפלט חייב להכיל אך ורק את שורות הדיאלוג ושורות האקשן (בתוך סוגריים עגולים בלבד). אין לכלול כותרות, רשימת דמויות או כל טקסט אחר לפני שורת הדיאלוג/פתיח הראשונה.
+5. **סיום:** וודא שהתסריט מסתיים בסימן דיאלוג או בשורת אקשן אחת בתוך סוגריים עגולים.`;
 
     return prompt;
   }
+  // **********************************
 
   buildNextEpisodePrompt(storyNotes) {
     let lengthPrompt = "אורך הפרק צריך להיות לפחות 10 דקות ויכול להגיע עד 15 דקות, עם דיאלוגים מפורטים ומגוונים.";
@@ -497,18 +522,19 @@ async saveApiKey() {
     let introPrompt = "";
     if (this.settings.addIntro) {
       const storyStyle = this.settings.storyStyle || "מגוון";
-      introPrompt = `התחל את התסריט עם פתיח קצר הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), מספר הפרק, וברכת "האזנה ערבה!". הפתיח חייב להיות נפרד ולא בתוך סוגריים מרובעים, והוא צריך להיות חלק מהטקסט שיוקרא על ידי ה-TTS כחלק מהסיפור. דוגמה: "הבוגד - פרק 2, סיפור מתח, האזנה ערבה!" ומיד לאחריו התחל את הדיאלוגים.`;
+      introPrompt = `צור פתיח קצר (עד 2 שורות) הכולל שם ייחודי לסיפור, סגנון הסיפור (${storyStyle}), מספר הפרק, וברכת "האזנה ערבה!". הפתיח חייב להיות בפורמט: [פתיח]: (טון נייטרלי) טקסט הפתיח המנוקד. מיד לאחר הפתיח, התחל את שורות הדיאלוג של הסיפור.`;
     }
 
     const previousScripts = this.seriesScripts.join("\n\n---\n\n");
     let prompt = `צור תסריט מפורט ומלא בעברית לפרק ${this.currentEpisode + 1} של סדרת סיפורים, בהתבסס על הפרקים הקודמים הבאים:\n\n${previousScripts}\n\nהערות או הנחיות לפרק הבא: "${storyNotes}". ${lengthPrompt} ${introPrompt}
 
 הנחיות קריטיות לפורמט הפלט:
-- ניקוד מלא וחובה: יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי. כל מילה בטקסט הדיאלוג חייבת להיות מנוקדת במלואה.
-- פורמט שורות קבוע: כל שורת דיאלוג חייבת להיות בפורמט: [שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.
-- פלט נקי: הפלט חייב להכיל אך ורק את שורות הדיאלוג של התסריט, כולל הפתיח אם נדרש. אין לכלול כותרות, רשימת דמויות, או כל טקסט אחר לפני שורת הדיאלוג הראשונה שמתחילה ב- '[' או לפני הפתיח.
-- וודא שהתסריט כולל מספיק דיאלוגים ותיאורים קצרים כדי לעמוד באורך המבוקש.
-- אם זה הפרק האחרון בסדרה (פרק ${this.settings.episodeCount} מתוך ${this.settings.episodeCount}), וודא שהעלילה מסתיימת בצורה מלאה וברורה ללא פתח להמשך.`;
+1. **ניקוד מלא וחובה:** יש לנקד את כל טקסט הדיאלוגים בתסריט בניקוד עברי תקני ומלא. זהו תנאי הכרחי.
+2. **פורמט דיאלוג קבוע:** כל שורת דיאלוג **חייבת** להיות בפורמט: **[שם הדמות]: (הנחיית טון ורגש) טקסט הדיאלוג המנוקד.**
+3. **הפרדת שורות אקשן:** **אל תשתמש** בסוגריים מרובעים [ ] בשום מקום אחר מלבד שם הדמות (לדוגמה: [דמות]). אם יש צורך בתיאור אקשן או תיאור סביבה, השתמש רק בסוגריים **עגולים** () וודא שהטקסט אינו מנוקד, לדוגמה: **(צליל של דלת נפתחת).** המערכת תקריא כל שורה.
+4. **פלט נקי:** הפלט חייב להכיל אך ורק את שורות הדיאלוג ושורות האקשן (בתוך סוגריים עגולים בלבד). אין לכלול כותרות, רשימת דמויות או כל טקסט אחר לפני שורת הדיאלוג/פתיח הראשונה.
+5. **סיום:** וודא שהתסריט מסתיים בסימן דיאלוג או בשורת אקשן אחת בתוך סוגריים עגולים.
+6. אם זה הפרק האחרון בסדרה (פרק ${this.settings.episodeCount} מתוך ${this.settings.episodeCount}), וודא שהעלילה מסתיימת בצורה מלאה וברורה ללא פתח להמשך.`;
 
     return prompt;
   }
@@ -523,7 +549,7 @@ async saveApiKey() {
     this.setLoading(button, spinner, btnText, true);
 
     try {
-      await this.generateAudioAndMix(); // שימוש בפונקציה החדשה
+      await this.generateAudioAndMix(); 
       this.showStep(3);
       if (this.settings.seriesStory && this.currentEpisode < this.settings.episodeCount) {
         document.getElementById("continueStorySection").style.display = "block";
@@ -533,7 +559,7 @@ async saveApiKey() {
     } catch (error) {
       console.error("Error generating audio:", error);
       if (error.message.includes("429")) {
-        this.showError("מכסת API מלאה. נסה מאוחר יותר או שדרג חשבון.");
+        this.showError("מכסת API מלאה או מוגבלת (429). המתן ונסה שוב, או שדרג את התוכנית.");
       } else if (error.message.includes("Vercel")) {
         this.showError("שגיאה במיקסינג: וודא שכתובת ה-Vercel נכונה ושהקובץ `background.mp3` קיים. " + error.message);
       } else {
@@ -544,7 +570,6 @@ async saveApiKey() {
     }
   }
 
-  // הפונקציה החדשה שמטפלת בהפקת האודיו ושימוש בשרת המיקסינג
   async generateAudioAndMix() {
     // *** החלף את ה-URL הבא בכתובת ה-Vercel הסופית שלך: ***
     const VERCEL_ENDPOINT = 'https://pashut-si.vercel.app/api/mix-audio';
@@ -558,7 +583,8 @@ async saveApiKey() {
     // פיצול התסריט לשורות (קטעי אודיו בודדים)
     const lines = narrationText.split('\n').filter(line => line.trim());
     const base64Segments = [];
-    const dialogueRegex = /\[([^\]]+)\]: \(([^\)]+)\) (.+)/;
+    // Regex מזהה: [דמות]: (הנחיה) טקסט מנוקד
+    const dialogueRegex = /\[([^\]]+)\]: \(([^\)]+)\) (.+)/; 
 
     // --- שלב 1: יצירת קטעי אודיו בודדים מ-Gemini TTS ---
     this.showStatus("scriptStatus", `מייצר ${lines.length} קטעי שמע בודדים...`, "success");
@@ -567,13 +593,18 @@ async saveApiKey() {
         const line = lines[i];
         let processedText = line;
         let voiceName = this.settings.voiceName || "kore";
-        // הנחיות הטון מועברות כטקסט רגיל ל-TTS.
         
         const match = line.match(dialogueRegex);
         if (match) {
             // שורת דיאלוג: [דמות]: (טון) דיאלוג
             const dialogue = match[3].trim();
             processedText = dialogue;
+        } else {
+            // שורת אקשן / פתיח: (טקסט) 
+            // אם השורה מתחילה בסוגריים עגולים (הנחיית אקשן) נשאיר אותה להקראה
+            if (line.trim().startsWith('(') && line.trim().endsWith(')')) {
+                processedText = line.trim().slice(1, -1).trim(); // מסיר סוגריים
+            }
         }
         
         // יצירת קטע שמע יחיד והמרתו ל-Base64 WAV
@@ -609,8 +640,7 @@ async saveApiKey() {
     this.showStatus("scriptStatus", "המיקסינג הושלם בהצלחה!", "success");
   }
 
-
-  // פונקציית עזר חדשה ליצירת קטע שמע בודד
+  // **** תיקון מכסת ה-API (429) ****
   async generateSegmentBase64(text, voiceName) {
     
     const requestBody = {
@@ -633,7 +663,9 @@ async saveApiKey() {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
 
     let response;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // הגדלת ניסיונות ל-5. 
+    // המתנה ארוכה יותר בין ניסיונות (90 שניות) בגלל מגבלת המכסה הנמוכה.
+    for (let attempt = 0; attempt < 5; attempt++) { 
       response = await fetch(url, {
         method: "POST",
         headers: {
@@ -645,8 +677,11 @@ async saveApiKey() {
       if (response.ok) break;
 
       if (response.status === 429) {
-        console.log(`Retry ${attempt + 1} after 60s due to 429`);
-        await new Promise((r) => setTimeout(r, 60000));
+        console.log(`Retry ${attempt + 1} after 90s due to 429`);
+        // אם זה הניסיון האחרון, צא מהלולאה
+        if (attempt === 4) break; 
+        
+        await new Promise((r) => setTimeout(r, 90000)); // המתנה של 90 שניות
       } else {
         const errorText = await response.text();
         console.error("Full error response:", errorText);
@@ -659,6 +694,7 @@ async saveApiKey() {
         console.error("Full error response:", errorText);
         throw new Error(`שגיאת API ב-TTS (קטע בודד): ${errorText}`);
     }
+    // **********************************
 
     const data = await response.json();
     const audioData = data.candidates[0].content.parts[0].inlineData.data;
@@ -842,7 +878,7 @@ async saveApiKey() {
 
     while ((match = speakerRegex.exec(script)) !== null) {
       const speakerName = match[1].trim();
-      if (speakerName && !speakerName.includes("צליל") && !speakerName.includes("מוזיקה")) {
+      if (speakerName && !speakerName.includes("צליל") && !speakerName.includes("מוזיקה") && speakerName !== "פתיח") {
         speakerSet.add(speakerName);
       }
     }
