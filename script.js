@@ -275,7 +275,7 @@ class StoryGenerator {
 
       const model = this.settings.storyModel || "gemini-2.5-flash";
       
-      // *** שינוי קריטי: קריאה לשרת ה-Vercel החדש (api/gemini) ***
+      // *** הכתובת המלאה לשרת ה-Vercel שלך ***
       const response = await fetch(
         'https://pashut-si.vercel.app/api/gemini', // הכתובת הקבועה של Vercel שלך
         {
@@ -350,7 +350,7 @@ class StoryGenerator {
 
       const model = this.settings.storyModel || "gemini-2.5-flash";
       
-      // *** שינוי קריטי: קריאה לשרת ה-Vercel החדש (api/gemini) ***
+      // *** הכתובת המלאה לשרת ה-Vercel שלך ***
       const response = await fetch(
         'https://pashut-si.vercel.app/api/gemini', // הכתובת הקבועה של Vercel שלך
         {
