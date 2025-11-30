@@ -1,14 +1,15 @@
 {
-  "name": "simplesipur-project",
+  "name": "pashut-si",
   "version": "1.0.0",
-  "description": "Story generator with server-side mixing on Vercel",
-  "main": "index.html",
+  "description": "Story generator using Gemini",
+  "main": "index.js",
   "scripts": {
-    "start": "echo 'No start script needed, Vercel handles this'"
+    "start": "vercel dev"
   },
   "dependencies": {
-    "fluent-ffmpeg": "^2.1.3",
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "@ffprobe-installer/ffprobe": "^2.1.2"
+    "fluent-ffmpeg": "^2.1.2",
+    "node-fetch": "^3.3.2",
+    "node-wav-merger": "^1.1.0",
+    "@google/genai": "^0.15.0"  <-- הוסף את השורה הזו
   }
 }
