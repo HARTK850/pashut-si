@@ -1,0 +1,14 @@
+{
+  "name": "simplesipur-project",
+  "version": "1.0.0",
+  "description": "Story generator with server-side mixing on Vercel",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'No start script needed, Vercel handles this'"
+  },
+  "dependencies": {
+    "fluent-ffmpeg": "^2.1.3",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2"
+  }
+}
