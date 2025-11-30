@@ -9,7 +9,7 @@ class StoryGenerator {
     this.currentStoryId = null;
     this.currentEpisode = 1;
     this.seriesScripts = [];
-    this.seriesVoiceSettings = {}; // To store voice settings for consistency
+    this.seriesVoiceSettings = {}; 
     this.init();
   }
 
@@ -512,7 +512,7 @@ class StoryGenerator {
     this.setLoading(button, spinner, btnText, true);
 
     try {
-      await this.generateAudioWithGeminiTTS();
+      await this.generateAudioAndMix(); // שימוש בפונקציה החדשה
       this.showStep(3);
       if (this.settings.seriesStory && this.currentEpisode < this.settings.episodeCount) {
         document.getElementById("continueStorySection").style.display = "block";
@@ -523,6 +523,8 @@ class StoryGenerator {
       console.error("Error generating audio:", error);
       if (error.message.includes("429")) {
         this.showError("מכסת API מלאה. נסה מאוחר יותר או שדרג חשבון.");
+      } else if (error.message.includes("Vercel")) {
+        this.showError("שגיאה במיקסינג: וודא שכתובת ה-Vercel נכונה ושהקובץ `background.mp3` קיים. " + error.message);
       } else {
         this.showError("שגיאה ביצירת שמע: " + error.message);
       }
@@ -531,43 +533,85 @@ class StoryGenerator {
     }
   }
 
-  async generateAudioWithGeminiTTS() {
+  // הפונקציה החדשה שמטפלת בהפקת האודיו ושימוש בשרת המיקסינג
+  async generateAudioAndMix() {
+    // *** החלף את ה-URL הבא בכתובת ה-Vercel הסופית שלך: ***
+    const VERCEL_ENDPOINT = 'https://pashut-si.vercel.app/api/mix-audio';
+    // ***************************************************************
+
     const narrationText = this.currentScript;
     if (!narrationText) {
       throw new Error("אין תסריט להקראה");
     }
 
+    // פיצול התסריט לשורות (קטעי אודיו בודדים)
     const lines = narrationText.split('\n').filter(line => line.trim());
-    let processedText = '';
-    const toneInstructions = [];
-
+    const base64Segments = [];
     const dialogueRegex = /\[([^\]]+)\]: \(([^\)]+)\) (.+)/;
 
-    for (const line of lines) {
-      const match = line.match(dialogueRegex);
-      if (match) {
-        const character = match[1].trim();
-        const tone = match[2].trim();
-        const dialogue = match[3].trim();
-        toneInstructions.push(`Speak the following line for ${character} in a ${tone} tone: ${dialogue}`);
-        processedText += `${dialogue}\n`;
-      } else {
-        processedText += `${line}\n`;
-      }
+    // --- שלב 1: יצירת קטעי אודיו בודדים מ-Gemini TTS ---
+    this.showStatus("scriptStatus", `מייצר ${lines.length} קטעי שמע בודדים...`, "success");
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        let processedText = line;
+        let voiceName = this.settings.voiceName || "kore";
+        // הנחיות הטון מועברות כטקסט רגיל ל-TTS.
+        
+        const match = line.match(dialogueRegex);
+        if (match) {
+            // שורת דיאלוג: [דמות]: (טון) דיאלוג
+            const dialogue = match[3].trim();
+            processedText = dialogue;
+        }
+        
+        // יצירת קטע שמע יחיד והמרתו ל-Base64 WAV
+        const base64Data = await this.generateSegmentBase64(processedText, voiceName);
+        base64Segments.push(base64Data);
+        
+        this.showStatus("scriptStatus", `הושלם קטע ${i + 1} מתוך ${lines.length}.`, "success");
+    }
+    
+    // --- שלב 2: שליחת כל הקטעים לשרת המיקסינג של Vercel ---
+    this.showStatus("scriptStatus", `שולח ${base64Segments.length} קטעים לשרת המיקסינג...`, "success");
+    
+    const mixResponse = await fetch(VERCEL_ENDPOINT, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            audioSegments: base64Segments, // מערך של מחרוזות Base64
+        }),
+    });
+    
+    if (!mixResponse.ok) {
+        const errorText = await mixResponse.text();
+        console.error("Vercel Mixer Error:", errorText);
+        throw new Error(`שגיאה בשרת המיקסינג של Vercel: ${mixResponse.status} - ${errorText}`);
     }
 
-    const narrationPrompt = `TTS the following conversation in Hebrew. Use the tone instructions provided to determine the speaking style for each line, but do not read the tone instructions or character names aloud (ignore anything within square brackets []). Apply the specified tone for each line until the next line or tone change. Ensure the text is spoken exactly as provided, preserving all Hebrew vocalization (niqqud):\n\nTone Instructions:\n${toneInstructions.join('\n')}\n\nText to speak:\n${processedText}`;
+    // קבלת קובץ ה-WAV הסופי מהשרת
+    const finalWavBlob = await mixResponse.blob();
+    
+    this.handleAudioResponse(finalWavBlob);
+    this.showStatus("scriptStatus", "המיקסינג הושלם בהצלחה!", "success");
+  }
 
+
+  // פונקציית עזר חדשה ליצירת קטע שמע בודד
+  async generateSegmentBase64(text, voiceName) {
+    
     const requestBody = {
       contents: [{
-        parts: [{ text: narrationPrompt }]
+        parts: [{ text: text }]
       }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
-              voiceName: this.settings.voiceName || "kore"
+              voiceName: voiceName
             }
           }
         }
@@ -595,34 +639,39 @@ class StoryGenerator {
       } else {
         const errorText = await response.text();
         console.error("Full error response:", errorText);
-        throw new Error(`שגיאת API: ${errorText}`);
+        throw new Error(`שגיאת API ב-TTS (קטע בודד): ${errorText}`);
       }
     }
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Full error response:", errorText);
-      throw new Error(`שגיאת API: ${errorText}`);
+        const errorText = await response.text();
+        console.error("Full error response:", errorText);
+        throw new Error(`שגיאת API ב-TTS (קטע בודד): ${errorText}`);
     }
 
     const data = await response.json();
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0] || !data.candidates[0].content.parts[0].inlineData || !data.candidates[0].content.parts[0].inlineData.data) {
-      throw new Error("לא התקבל אודיו תקין מה-API");
-    }
-
     const audioData = data.candidates[0].content.parts[0].inlineData.data;
+
     if (!audioData || audioData.length === 0) {
-      throw new Error("נתוני האודיו ריקים");
+      throw new Error("נתוני האודיו ריקים לקטע: " + text.substring(0, 50));
     }
 
+    // המרת נתוני ה-PCM הגולמיים שמתקבלים מה-API לקובץ WAV תקין (Blob)
     const pcmBytes = Uint8Array.from(atob(audioData), (c) => c.charCodeAt(0));
     const wavBlob = this.createWavBlob(pcmBytes);
 
-    if (wavBlob.size < 44) {
-      throw new Error("קובץ השמע שנוצר קטן מדי");
-    }
-
-    this.handleAudioResponse(wavBlob);
+    // קריאת ה-Blob והמרתו למחרוזת Base64 כדי לשלוח לשרת המיקסינג
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            // התוצאה היא 'data:audio/wav;base64,...'. אנחנו צריכים רק את המחרוזת לאחר הפסיק.
+            const base64String = reader.result.split(',')[1]; 
+            resolve(base64String);
+        };
+        reader.onerror = reject;
+        // חשוב לקרוא כ-Data URL כדי לקבל את Base64
+        reader.readAsDataURL(wavBlob); 
+    });
   }
 
   handleAudioResponse(audioBlob) {
@@ -692,9 +741,7 @@ class StoryGenerator {
     element.style.display = "block";
 
     if (type === "success") {
-      setTimeout(() => {
-        element.style.display = "none";
-      }, 3000);
+      // לא מסתיר הצלחה אוטומטית כי זה סטטוס התקדמות
     }
   }
 
@@ -733,39 +780,6 @@ class StoryGenerator {
     this.showStep(1);
 
     document.getElementById("errorMessage").style.display = "none";
-  }
-
-  createSilenceBlob(durationMs) {
-    const sampleRate = 24000;
-    const numSamples = Math.floor((sampleRate * durationMs) / 1000);
-    const buffer = new ArrayBuffer(44 + numSamples * 2);
-    const view = new DataView(buffer);
-
-    const writeString = (offset, string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-
-    writeString(0, "RIFF");
-    view.setUint32(4, 36 + numSamples * 2, true);
-    writeString(8, "WAVE");
-    writeString(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, "data");
-    view.setUint32(40, numSamples * 2, true);
-
-    for (let i = 0; i < numSamples; i++) {
-      view.setInt16(44 + i * 2, 0, true);
-    }
-
-    return new Blob([buffer], { type: "audio/wav" });
   }
 
   createWavBlob(pcmData) {
